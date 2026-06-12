@@ -25,3 +25,8 @@ voice:
   ask-timeout-ms: ${ASK_TIMEOUT_MS:20000}
   stale-turn-limit: ${STALE_TURN_LIMIT:2}
   event-log-path: ${EVENT_LOG_PATH:./data/events.jsonl}
+  suppression-token-threshold: ${SUPPRESSION_TOKEN_THRESHOLD:8}
+  suppression-fade-ms: ${SUPPRESSION_FADE_MS:250}
+  barge-in-min-ms: ${BARGE_IN_MIN_MS:400}
+  barge-in-energy-threshold: ${BARGE_IN_ENERGY_THRESHOLD:0.015}
+  stub-tts-frame-count: ${STUB_TTS_FRAME_COUNT:6}

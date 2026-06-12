@@ -9,6 +9,8 @@ import com.voicedemo.gateway.router.RouteDecision;
 import com.voicedemo.gateway.router.RouteLabel;
 import com.voicedemo.gateway.router.RouterService;
 import com.voicedemo.gateway.speech.OutboundMixer;
+import com.voicedemo.gateway.speech.BargeInDetector;
+import com.voicedemo.gateway.speech.SuppressionGate;
 import com.voicedemo.gateway.speech.TtsClient;
 import com.voicedemo.gateway.transcript.TranscriptLine;
 import com.voicedemo.gateway.transcript.TranscriptService;
@@ -31,6 +33,8 @@ public class ConversationCoordinator {
     private final AskJobService askJobService;
     private final TtsClient ttsClient;
     private final OutboundMixer outboundMixer;
+    private final SuppressionGate suppressionGate;
+    private final BargeInDetector bargeInDetector;
     private final SessionStateMachine stateMachine;
 
     public ConversationCoordinator(
@@ -41,6 +45,8 @@ public class ConversationCoordinator {
             AskJobService askJobService,
             TtsClient ttsClient,
             OutboundMixer outboundMixer,
+            SuppressionGate suppressionGate,
+            BargeInDetector bargeInDetector,
             SessionStateMachine stateMachine) {
         this.transcriptService = transcriptService;
         this.routerService = routerService;
@@ -49,6 +55,8 @@ public class ConversationCoordinator {
         this.askJobService = askJobService;
         this.ttsClient = ttsClient;
         this.outboundMixer = outboundMixer;
+        this.suppressionGate = suppressionGate;
+        this.bargeInDetector = bargeInDetector;
         this.stateMachine = stateMachine;
     }
 
@@ -70,6 +78,7 @@ public class ConversationCoordinator {
 
         if (decision.label() == RouteLabel.ASK) {
             state.apply(stateMachine, SessionEvent.ROUTER_ASK);
+            suppressionGate.startAsk(sessionId, correlationId);
             AskJobRequest request = new AskJobRequest(
                     correlationId,
                     sessionId,
@@ -88,20 +97,37 @@ public class ConversationCoordinator {
         }
     }
 
-    public void onMoshiText(WebSocketSession socketSession, String sessionId, String text) {
+    public void onMoshiText(WebSocketSession socketSession, SessionState state, String text) {
+        String sessionId = state.sessionId();
+        suppressionGate.observeMoshiText(sessionId, state.status(), text);
         transcriptService.addMoshiText(sessionId, text);
         controlMessageSender.moshiTranscript(socketSession, sessionId, text);
+    }
+
+    public void onBargeIn(WebSocketSession socketSession, SessionState state) {
+        String sessionId = state.sessionId();
+        outboundMixer.activeCorrelationId(sessionId).ifPresent(correlationId -> {
+            state.apply(stateMachine, SessionEvent.USER_SPEECH);
+            eventLogger.log("barge_in", sessionId, Map.of(
+                    "correlationId", correlationId,
+                    "abandoned", true
+            ));
+            outboundMixer.cancelInjection(sessionId);
+        });
     }
 
     public void onSessionClosed(String sessionId) {
         askJobService.cancelSession(sessionId);
         outboundMixer.reset(sessionId);
+        suppressionGate.reset(sessionId);
+        bargeInDetector.reset(sessionId);
         transcriptService.remove(sessionId);
     }
 
     private void onAskJobResult(WebSocketSession socketSession, SessionState state, AskJobResult result) {
         if (result.type() == AskJobResultType.DROPPED) {
             state.apply(stateMachine, SessionEvent.JOB_RESULT_STALE_DROP);
+            suppressionGate.endAsk(result.sessionId());
             return;
         }
 
@@ -109,6 +135,7 @@ public class ConversationCoordinator {
                 stateMachine,
                 result.reintroduced() ? SessionEvent.JOB_RESULT_STALE_REINTRODUCE : SessionEvent.JOB_RESULT_FRESH
         );
+        suppressionGate.endAsk(result.sessionId());
         transcriptService.addMoshiText(result.sessionId(), result.text());
         controlMessageSender.moshiTranscript(socketSession, result.sessionId(), result.text());
         controlMessageSender.injectStart(socketSession, result.sessionId(), result.correlationId());

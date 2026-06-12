@@ -8,7 +8,9 @@ import com.voicedemo.gateway.session.SessionRegistry;
 import com.voicedemo.gateway.session.SessionState;
 import com.voicedemo.gateway.session.SessionStateMachine;
 import com.voicedemo.gateway.speech.AudioInboundPipeline;
+import com.voicedemo.gateway.speech.BargeInDetector;
 import com.voicedemo.gateway.speech.OutboundMixer;
+import com.voicedemo.gateway.speech.SuppressionGate;
 import com.voicedemo.gateway.speech.SttClient;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
@@ -33,6 +35,8 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
     private final ControlMessageSender controlMessageSender;
     private final ConversationCoordinator conversationCoordinator;
     private final OutboundMixer outboundMixer;
+    private final SuppressionGate suppressionGate;
+    private final BargeInDetector bargeInDetector;
     private final SessionStateMachine stateMachine;
     private final ObjectMapper objectMapper;
     private final Map<String, SessionState> browserSessions = new ConcurrentHashMap<>();
@@ -45,6 +49,8 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
             ControlMessageSender controlMessageSender,
             ConversationCoordinator conversationCoordinator,
             OutboundMixer outboundMixer,
+            SuppressionGate suppressionGate,
+            BargeInDetector bargeInDetector,
             SessionStateMachine stateMachine,
             ObjectMapper objectMapper) {
         this.sessionRegistry = sessionRegistry;
@@ -54,6 +60,8 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
         this.controlMessageSender = controlMessageSender;
         this.conversationCoordinator = conversationCoordinator;
         this.outboundMixer = outboundMixer;
+        this.suppressionGate = suppressionGate;
+        this.bargeInDetector = bargeInDetector;
         this.stateMachine = stateMachine;
         this.objectMapper = objectMapper;
     }
@@ -73,12 +81,16 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
 
             @Override
             public void onAudio(byte[] pcm) {
-                outboundMixer.forwardMoshiAudio(webSocketSession, state.sessionId(), pcm);
+                outboundMixer.forwardMoshiAudio(
+                        webSocketSession,
+                        state.sessionId(),
+                        suppressionGate.filterMoshiAudio(state.sessionId(), state.status(), pcm)
+                );
             }
 
             @Override
             public void onText(String text) {
-                conversationCoordinator.onMoshiText(webSocketSession, state.sessionId(), text);
+                conversationCoordinator.onMoshiText(webSocketSession, state, text);
             }
 
             @Override
@@ -103,7 +115,11 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
             controlMessageSender.error(session, "SESSION_NOT_FOUND", "No gateway session for browser socket");
             return;
         }
-        audioInboundPipeline.onPcmFrame(state.sessionId(), bytes(message.getPayload()));
+        byte[] pcm = bytes(message.getPayload());
+        if (bargeInDetector.observe(state.sessionId(), state.status(), pcm)) {
+            conversationCoordinator.onBargeIn(session, state);
+        }
+        audioInboundPipeline.onPcmFrame(state.sessionId(), pcm);
     }
 
     @Override

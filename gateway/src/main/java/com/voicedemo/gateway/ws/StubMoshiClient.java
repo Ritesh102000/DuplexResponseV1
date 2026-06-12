@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @ConditionalOnProperty(name = "voice.moshi-mode", havingValue = "stub", matchIfMissing = true)
 public class StubMoshiClient implements MoshiClient {
     public static final byte[] DROP_FRAME = "__drop__".getBytes(StandardCharsets.UTF_8);
+    public static final String TEXT_FRAME_PREFIX = "__moshi_text__:";
 
     private final Map<String, MoshiCallbacks> sessions = new ConcurrentHashMap<>();
 
@@ -29,6 +30,11 @@ public class StubMoshiClient implements MoshiClient {
         if (matchesDropFrame(pcm)) {
             sessions.remove(sessionId);
             callbacks.onClose();
+            return;
+        }
+        String text = fixtureText(pcm);
+        if (text != null) {
+            callbacks.onText(text);
             return;
         }
         callbacks.onAudio(pcm);
@@ -50,5 +56,12 @@ public class StubMoshiClient implements MoshiClient {
         }
         return true;
     }
-}
 
+    private String fixtureText(byte[] pcm) {
+        String text = new String(pcm, StandardCharsets.UTF_8);
+        if (!text.startsWith(TEXT_FRAME_PREFIX)) {
+            return null;
+        }
+        return text.substring(TEXT_FRAME_PREFIX.length());
+    }
+}

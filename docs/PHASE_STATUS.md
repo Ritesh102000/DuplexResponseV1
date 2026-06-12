@@ -5,8 +5,8 @@
 | Phase 0 - Model decisions + scaffold | Complete | Passed: router-label validation, `mvn verify`, packaged gateway boot | Complete | `phase-0: scaffold project and record model decisions` |
 | Phase 1 - Moshi protocol + proxy | Complete | Passed: protocol tests, WebSocket proxy integration tests, reconnect test, `mvn verify` | Complete | `phase-1: document moshi protocol and add ws proxy` |
 | Phase 2 - Transcripts + router | Complete | Passed: router-label validation, router eval, heuristic router tests, transcript buffer tests, WebSocket route-decision integration, `mvn verify` | Complete by human request to start Phase 3 | `phase-2: add transcripts and router` |
-| Phase 3 - Ask flow end-to-end | Complete | Passed: state-machine tests, ASK-flow WebSocket integration, stale-drop test, supersede test, `mvn -pl gateway verify` | Pending | `phase-3: add ask flow job injection` |
-| Phase 4 - Suppression + barge-in | Not started | Not run | Pending | Pending |
+| Phase 3 - Ask flow end-to-end | Complete | Passed: state-machine tests, ASK-flow WebSocket integration, stale-drop test, supersede test, `mvn -pl gateway verify` | Complete by human request to start Phase 4 | `phase-3: add ask flow job injection` |
+| Phase 4 - Suppression + barge-in | Complete | Passed: suppression/barge-in integration tests, `mvn -pl gateway verify` | Pending | `phase-4: add suppression gate and barge-in` |
 | Phase 5 - Metrics + evaluation | Not started | Not run | Pending | Pending |
 | Phase 6 - Hardening + packaging | Not started | Not run | Pending | Pending |
 
@@ -80,4 +80,24 @@
 - [x] Stale-drop test passes.
 - [x] Supersede test passes.
 - [x] `mvn -pl gateway verify` passes.
-- [ ] Human real-Moshi + real-LLM ASK checkpoint is complete.
+- [x] Automated real-Moshi audio bridge smoke returns Moshi text and binary PCM through `/ws/voice`.
+- [x] Automated real-backend handoff smoke routes typed ASK to the LLM and injects TTS audio through `/ws/voice`.
+- [x] Human checkpoint accepted by request to start Phase 4.
+
+## Phase 4 Acceptance Checklist
+
+- [x] Suppression gate is wired during `ASK_IN_FLIGHT`.
+- [x] Moshi text-token threshold is configurable.
+- [x] Long Moshi answer attempts trigger `suppression.faded`.
+- [x] Suppressed Moshi audio fades toward zero over the configured fade window.
+- [x] Short Moshi acknowledgment fixtures pass audio through.
+- [x] Barge-in detector watches inbound user PCM during `INJECTING`.
+- [x] Barge-in cancels active TTS injection and logs `barge_in`.
+- [x] Fake Moshi has `ack` and `long-answer` fixtures.
+- [x] Integration test asserts long-answer audio energy is near zero after threshold.
+- [x] Integration test asserts acknowledgment audio passes through.
+- [x] Integration test asserts TTS stream cancels within 500 ms of barge-in.
+- [x] `mvn -pl gateway verify` passes.
+- [x] Router-label validation and router eval pass.
+- [x] Python and JS syntax checks pass.
+- [ ] Human 20-question real-runtime suppression-rate checkpoint is complete.

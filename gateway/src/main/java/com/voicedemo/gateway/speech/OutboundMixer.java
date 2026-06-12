@@ -6,15 +6,19 @@ import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.Disposable;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Set;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Component
 public class OutboundMixer {
-    private final Set<String> injectingSessions = ConcurrentHashMap.newKeySet();
+    private final ConcurrentMap<String, ActiveInjection> activeInjections = new ConcurrentHashMap<>();
     private final ControlMessageSender controlMessageSender;
     private static final Duration FRAME_DURATION = Duration.ofMillis(80);
 
@@ -23,7 +27,7 @@ public class OutboundMixer {
     }
 
     public void forwardMoshiAudio(WebSocketSession session, String sessionId, byte[] pcm) {
-        if (injectingSessions.contains(sessionId)) {
+        if (activeInjections.containsKey(sessionId)) {
             return;
         }
         sendBinary(session, pcm);
@@ -35,8 +39,9 @@ public class OutboundMixer {
             String correlationId,
             Flux<byte[]> ttsFrames,
             Runnable onComplete) {
-        injectingSessions.add(sessionId);
-        ttsFrames
+        ActiveInjection active = new ActiveInjection(correlationId);
+        activeInjections.put(sessionId, active);
+        Disposable disposable = ttsFrames
                 .concatMap(frame -> Mono.fromRunnable(() -> sendBinary(session, frame))
                         .then(Mono.delay(FRAME_DURATION))
                         .then())
@@ -46,18 +51,36 @@ public class OutboundMixer {
                         error.getMessage() == null ? "TTS stream failed" : error.getMessage()
                 ))
                 .doFinally(signal -> {
-                    injectingSessions.remove(sessionId);
+                    activeInjections.remove(sessionId);
                     onComplete.run();
                 })
                 .subscribe();
+        active.disposable(disposable);
+    }
+
+    public Optional<String> cancelInjection(String sessionId) {
+        ActiveInjection active = activeInjections.get(sessionId);
+        if (active == null) {
+            return Optional.empty();
+        }
+        active.dispose();
+        return Optional.of(active.correlationId());
+    }
+
+    public Optional<String> activeCorrelationId(String sessionId) {
+        ActiveInjection active = activeInjections.get(sessionId);
+        return active == null ? Optional.empty() : Optional.of(active.correlationId());
     }
 
     public void reset(String sessionId) {
-        injectingSessions.remove(sessionId);
+        ActiveInjection active = activeInjections.remove(sessionId);
+        if (active != null) {
+            active.dispose();
+        }
     }
 
     public boolean isInjecting(String sessionId) {
-        return injectingSessions.contains(sessionId);
+        return activeInjections.containsKey(sessionId);
     }
 
     private void sendBinary(WebSocketSession session, byte[] pcm) {
@@ -70,6 +93,35 @@ public class OutboundMixer {
             }
         } catch (IOException | IllegalStateException e) {
             controlMessageSender.error(session, "AUDIO_SEND_FAILED", e.getMessage());
+        }
+    }
+
+    private static final class ActiveInjection {
+        private final String correlationId;
+        private final AtomicReference<Disposable> disposable = new AtomicReference<>();
+        private final AtomicBoolean cancelled = new AtomicBoolean(false);
+
+        private ActiveInjection(String correlationId) {
+            this.correlationId = correlationId;
+        }
+
+        String correlationId() {
+            return correlationId;
+        }
+
+        void disposable(Disposable candidate) {
+            disposable.set(candidate);
+            if (cancelled.get()) {
+                candidate.dispose();
+            }
+        }
+
+        void dispose() {
+            cancelled.set(true);
+            Disposable current = disposable.get();
+            if (current != null) {
+                current.dispose();
+            }
         }
     }
 }

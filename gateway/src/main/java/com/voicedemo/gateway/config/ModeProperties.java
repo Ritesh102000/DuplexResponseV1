@@ -16,5 +16,10 @@ public record ModeProperties(
         String llmModelRouter,
         int askTimeoutMs,
         int staleTurnLimit,
-        String eventLogPath) {
+        String eventLogPath,
+        int suppressionTokenThreshold,
+        int suppressionFadeMs,
+        int bargeInMinMs,
+        double bargeInEnergyThreshold,
+        int stubTtsFrameCount) {
 }

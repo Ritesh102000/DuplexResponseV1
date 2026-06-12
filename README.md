@@ -6,7 +6,7 @@ This project is a real-time voice assistant demo with Moshi handling live conver
 
 ## Current Phase
 
-Phase 3 - Ask flow end-to-end. Automated stub acceptance is complete; human real-runtime checkpoint is next.
+Phase 4 - Suppression + barge-in. Automated stub acceptance is complete; human real-runtime suppression checkpoint is next.
 
 ## Development Defaults
 
@@ -122,3 +122,28 @@ uvicorn app.main:app --host 0.0.0.0 --port 8082
 
 Then start the gateway with `TTS_MODE=real`. On macOS, the sidecar uses the
 system `say` voice and returns 24 kHz mono WAV audio to the gateway.
+
+## Phase 4 Checks
+
+Phase 4 adds the ASK-in-flight suppression gate and barge-in cancellation. While
+an ASK job is pending, Moshi text beyond `SUPPRESSION_TOKEN_THRESHOLD` causes
+Moshi audio to fade to zero over `SUPPRESSION_FADE_MS` and logs
+`suppression.faded`. During injected TTS, user speech over `BARGE_IN_MIN_MS`
+cancels the injection, logs `barge_in`, and returns the floor.
+
+```sh
+mvn -pl gateway -Dtest=Phase4SuppressionBargeInIntegrationTests test
+mvn -pl gateway verify
+python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
+python3 scripts/router_eval.py docs/eval/router-labels.jsonl
+python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py stubs/fake-moshi/fake_moshi.py
+node --check gateway/src/main/resources/static/app.js
+node --check gateway/src/main/resources/static/mic-capture-worklet.js
+```
+
+Fake Moshi suppression fixtures:
+
+```sh
+python3 stubs/fake-moshi/fake_moshi.py --port 8998 --fixture ack
+python3 stubs/fake-moshi/fake_moshi.py --port 8998 --fixture long-answer
+```

@@ -1,24 +1,30 @@
 # Project Context
 
-Current phase: Phase 3 - Ask flow end-to-end.
+Current phase: Phase 4 - Suppression + barge-in.
 
 Current objective:
-Stop at the Phase 3 human checkpoint after adding the stub-mode ASK flow: delayed backend answer job, correlation IDs, supersede/stale policy, harmonizer, TTS injection, outbound mixer suppression, and Phase 3 tests.
+Stop at the Phase 4 human checkpoint after adding ASK-in-flight suppression, long-answer fade, acknowledgment pass-through, and barge-in cancellation tests.
 
 Current status:
-Phase 3 automated acceptance is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan. The human request to start Phase 3 is treated as approval of the Phase 2 checkpoint. For local spoken backend answers, run `tts-service` on macOS from a Python 3.12 venv and start the gateway with `TTS_MODE=real`; `TTS_MODE=stub` intentionally plays a tone. A real-TTS smoke test confirms binary audio frames and `inject.end` arrive without WebClient buffer errors.
+Phase 4 automated stub acceptance is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan. The human request to start Phase 4 is treated as approval of the Phase 3 checkpoint. Phase 4 added a configurable `SuppressionGate` for Moshi text-token based audio fading during `ASK_IN_FLIGHT`, a `BargeInDetector` for user speech during `INJECTING`, cancellable TTS injections in `OutboundMixer`, and fake-Moshi `ack` / `long-answer` fixtures. For local spoken backend answers, run `tts-service` on macOS from a Python 3.12 venv and start the gateway with `TTS_MODE=real`; `TTS_MODE=stub` intentionally plays a tone.
 
 Recent real-Moshi probe:
 Local Moshi MLX exists at `/Users/riteshrajput/.venvs/moshi-mlx/bin/python` with `moshi_mlx 0.3.0`. The server starts with `python -m moshi_mlx.local_web -q 4 --host 127.0.0.1 --port 8998 --no-browser`, loads cached `kyutai/moshiko-mlx-q4`, and accepts `/api/chat` with handshake `00`. `RealMoshiClient` bridges raw 24 kHz PCM from the browser to Ogg/Opus for Moshi and decodes Moshi Ogg/Opus back to raw PCM for the browser. Moshi's `sphn` writer emits OpusHead input rate `48000`, so the Java decoder must decode at 48 kHz and downsample to the browser's 24 kHz PCM. The static UI has AudioWorklet mic capture, queued PCM playback, browser audio unlock, a speaker test, and output peak logging.
 
+Latest local test session:
+Moshi and the gateway were started in detached `screen` sessions: `moshi8998` and `gateway8080`. `tts-service` was already listening on `8082`. WebSocket handshake through `ws://127.0.0.1:8080/ws/voice` returned `session.start`; a synthesized speech clip sent through the gateway to real Moshi returned 6 binary PCM frames and Moshi text fragments `Hey` and `what`.
+
+Latest handoff test:
+With Moshi still connected in real mode and `LLM_MODE=real`, a typed `transcript.user` for `what is the capital of australia` produced `router.decision` label `ASK` with confidence `0.95`, a harmonized backend answer, `inject.start`, 59 binary PCM frames from real TTS, and `inject.end`.
+
 Next exact step:
-Run the Phase 3 human checkpoint: start real Moshi plus the gateway, ask a factual question through the project browser, confirm Moshi acknowledges quickly, and confirm the harmonized injected answer is spoken after the backend delay.
+Run the Phase 4 human checkpoint: use real Moshi plus the gateway on scripted delegated questions, confirm short acknowledgments pass, long Moshi answer attempts are faded, and barge-in stops injected TTS. Record suppression rate for the Phase 5 metrics work.
 
 Important constraints:
 - Do not guess Moshi's wire protocol.
 - Stub mode is the default for CI and local development.
 - Real Moshi target is local Apple Silicon MLX q4 using `kyutai/moshiko-mlx-q4`.
-- Phase 3 CI acceptance uses stub Moshi/STT/TTS/LLM paths; real Moshi, Piper voice quality, and hosted LLM behavior remain human checkpoint work.
+- Phase 4 CI acceptance uses stub Moshi/STT/TTS/LLM paths; real Moshi, Piper voice quality, hosted LLM behavior, and suppression-rate measurement remain human checkpoint work.
 
 Validation completed:
 - `python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl`
@@ -37,3 +43,7 @@ Validation completed:
 - TTS service setup probe: default `python3` is 3.14 and failed pinned Pydantic/PyO3 install; `/opt/homebrew/bin/python3.12` venv installed successfully and `/speak` returned valid WAV.
 - Real-TTS gateway smoke test: gateway on port 18080 with `TTS_MODE=real`, `LLM_MODE=stub`, TTS sidecar on 8082; WebSocket ASK received `inject.start`, 24 binary PCM frames, and `inject.end`.
 - Real-TTS buffer fix: `RealTtsClient` now consumes the WAV response as `DataBuffer` chunks so macOS `say` responses larger than Spring WebClient's default 256 KB memory limit do not fail.
+- Real-Moshi gateway smoke test after the TTS buffer fix: detached `screen` sessions kept Moshi on 8998 and gateway on 8080 alive; WebSocket handshake returned `session.start`, and synthesized speech sent through `/ws/voice` produced Moshi text plus binary PCM response frames.
+- Real backend handoff smoke test: typed ASK through `/ws/voice` while gateway was in `MOSHI_MODE=real`, `LLM_MODE=real`, and `TTS_MODE=real`; observed `router.decision`, backend answer, `inject.start`, 59 audio frames, and `inject.end`.
+- Phase 4 focused validation: `mvn -pl gateway -Dtest=SessionStateMachineTests,Phase4SuppressionBargeInIntegrationTests test`.
+- Phase 4 full validation: `mvn -pl gateway verify`, router-label validation, router eval, Python compile checks including fake Moshi, JS syntax checks, and `git diff --check`.
