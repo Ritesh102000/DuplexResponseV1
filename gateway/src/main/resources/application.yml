@@ -13,10 +13,10 @@ management:
 
 voice:
   moshi-mode: ${MOSHI_MODE:stub}
+  moshi-ws-url: ${MOSHI_WS_URL:ws://localhost:8998/api/chat}
   stt-mode: ${STT_MODE:stub}
   tts-mode: ${TTS_MODE:stub}
   llm-mode: ${LLM_MODE:stub}
   ask-timeout-ms: ${ASK_TIMEOUT_MS:20000}
   stale-turn-limit: ${STALE_TURN_LIMIT:2}
   event-log-path: ${EVENT_LOG_PATH:./data/events.jsonl}
-

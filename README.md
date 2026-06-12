@@ -21,3 +21,19 @@ mvn verify
 python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
 ```
 
+## Phase 1 Checks
+
+The gateway exposes `/ws/voice` in stub mode. The Phase 1 integration tests connect to that endpoint, send one 80 ms PCM frame, and assert the echoed audio is byte-equivalent.
+
+```sh
+mvn verify
+python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
+```
+
+To try the browser shell:
+
+```sh
+java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar
+```
+
+Then open `http://localhost:8080` and use **Connect** followed by **Send Test Frame**.

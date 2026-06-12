@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Two-Tier Voice Assistant</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="controls">
+      <h1>Two-Tier Voice Assistant</h1>
+      <div class="toolbar">
+        <button id="connect" type="button">Connect</button>
+        <button id="disconnect" type="button" disabled>Disconnect</button>
+        <button id="tone" type="button" disabled>Send Test Frame</button>
+      </div>
+      <p id="status">Disconnected</p>
+    </section>
+    <section class="panel">
+      <h2>Debug</h2>
+      <pre id="debug"></pre>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
+

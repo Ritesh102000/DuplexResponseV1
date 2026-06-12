@@ -1,23 +1,23 @@
 # Project Context
 
-Current phase: Phase 0 - Model Decisions + Project Scaffold.
+Current phase: Phase 1 - Moshi protocol doc + audio pass-through proxy.
 
 Current objective:
-Create the project-memory files, record model/demo decisions, scaffold a bootable Spring Boot Java 21 gateway, add documentation and router-label fixtures, run stub-mode validation, commit, and stop for the human checkpoint.
+Stop at the Phase 1 human checkpoint after documenting the Moshi protocol, adding the browser WebSocket gateway surface, fake Moshi stub, static web client, and stub-mode proxy tests.
 
 Current status:
-Phase 0 scaffold is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan. The repository has been initialized with git.
+Phase 1 stub acceptance is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan.
 
 Next exact step:
-Review Phase 0 output and complete the human checkpoint. Do not start Phase 1 until the checkpoint is accepted.
+Run the real Moshi human checkpoint when ready: start real Moshi, connect through the gateway, and confirm a full-duplex conversation through `/ws/voice` without perceptible added latency. Do not start Phase 2 until the checkpoint is accepted.
 
 Important constraints:
-- Do not start Phase 1.
 - Do not guess Moshi's wire protocol.
 - Stub mode is the default for CI and local development.
 - Real Moshi target is local Apple Silicon MLX q4 using `kyutai/moshiko-mlx-q4`.
+- Phase 1 CI acceptance uses `MOSHI_MODE=stub`; real Moshi validation remains a human checkpoint.
 
 Validation completed:
 - `python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl`
 - `mvn verify`
-- Packaged gateway boot check with `java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar --server.port=0`
+- Phase 1 WebSocket integration tests: byte-equivalent PCM echo and reconnect after stub drop.
