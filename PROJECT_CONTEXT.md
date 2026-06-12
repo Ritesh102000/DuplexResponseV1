@@ -6,7 +6,7 @@ Current objective:
 Stop at the Phase 3 human checkpoint after adding the stub-mode ASK flow: delayed backend answer job, correlation IDs, supersede/stale policy, harmonizer, TTS injection, outbound mixer suppression, and Phase 3 tests.
 
 Current status:
-Phase 3 automated acceptance is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan. The human request to start Phase 3 is treated as approval of the Phase 2 checkpoint. For local spoken backend answers, run `tts-service` on macOS from a Python 3.12 venv and start the gateway with `TTS_MODE=real`; `TTS_MODE=stub` intentionally plays a tone. A real-TTS smoke test now confirms binary audio frames and `inject.end` arrive.
+Phase 3 automated acceptance is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan. The human request to start Phase 3 is treated as approval of the Phase 2 checkpoint. For local spoken backend answers, run `tts-service` on macOS from a Python 3.12 venv and start the gateway with `TTS_MODE=real`; `TTS_MODE=stub` intentionally plays a tone. A real-TTS smoke test confirms binary audio frames and `inject.end` arrive without WebClient buffer errors.
 
 Recent real-Moshi probe:
 Local Moshi MLX exists at `/Users/riteshrajput/.venvs/moshi-mlx/bin/python` with `moshi_mlx 0.3.0`. The server starts with `python -m moshi_mlx.local_web -q 4 --host 127.0.0.1 --port 8998 --no-browser`, loads cached `kyutai/moshiko-mlx-q4`, and accepts `/api/chat` with handshake `00`. `RealMoshiClient` bridges raw 24 kHz PCM from the browser to Ogg/Opus for Moshi and decodes Moshi Ogg/Opus back to raw PCM for the browser. Moshi's `sphn` writer emits OpusHead input rate `48000`, so the Java decoder must decode at 48 kHz and downsample to the browser's 24 kHz PCM. The static UI has AudioWorklet mic capture, queued PCM playback, browser audio unlock, a speaker test, and output peak logging.
@@ -36,3 +36,4 @@ Validation completed:
 - Local TTS probe: macOS `say` + `afconvert` produced 24 kHz, 16-bit mono WAV for backend answer speech.
 - TTS service setup probe: default `python3` is 3.14 and failed pinned Pydantic/PyO3 install; `/opt/homebrew/bin/python3.12` venv installed successfully and `/speak` returned valid WAV.
 - Real-TTS gateway smoke test: gateway on port 18080 with `TTS_MODE=real`, `LLM_MODE=stub`, TTS sidecar on 8082; WebSocket ASK received `inject.start`, 24 binary PCM frames, and `inject.end`.
+- Real-TTS buffer fix: `RealTtsClient` now consumes the WAV response as `DataBuffer` chunks so macOS `say` responses larger than Spring WebClient's default 256 KB memory limit do not fail.

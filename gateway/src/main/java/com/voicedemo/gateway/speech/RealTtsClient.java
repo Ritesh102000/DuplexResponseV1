@@ -2,11 +2,14 @@ package com.voicedemo.gateway.speech;
 
 import com.voicedemo.gateway.config.ModeProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.ByteArrayOutputStream;
 import java.time.Duration;
 import java.util.Map;
 
@@ -26,7 +29,15 @@ public class RealTtsClient implements TtsClient {
                             .uri("/speak")
                             .bodyValue(Map.of("text", text))
                             .retrieve()
-                            .bodyToMono(byte[].class)
+                            .bodyToFlux(DataBuffer.class)
+                            .reduce(new ByteArrayOutputStream(), (output, buffer) -> {
+                                byte[] chunk = new byte[buffer.readableByteCount()];
+                                buffer.read(chunk);
+                                DataBufferUtils.release(buffer);
+                                output.writeBytes(chunk);
+                                return output;
+                            })
+                            .map(ByteArrayOutputStream::toByteArray)
                             .block(Duration.ofSeconds(15));
                     if (audio == null || audio.length == 0) {
                         return Flux.empty();
