@@ -6,8 +6,8 @@
 | Phase 1 - Moshi protocol + proxy | Complete | Passed: protocol tests, WebSocket proxy integration tests, reconnect test, `mvn verify` | Complete | `phase-1: document moshi protocol and add ws proxy` |
 | Phase 2 - Transcripts + router | Complete | Passed: router-label validation, router eval, heuristic router tests, transcript buffer tests, WebSocket route-decision integration, `mvn verify` | Complete by human request to start Phase 3 | `phase-2: add transcripts and router` |
 | Phase 3 - Ask flow end-to-end | Complete | Passed: state-machine tests, ASK-flow WebSocket integration, stale-drop test, supersede test, `mvn -pl gateway verify` | Complete by human request to start Phase 4 | `phase-3: add ask flow job injection` |
-| Phase 4 - Suppression + barge-in | Complete | Passed: suppression/barge-in integration tests, `mvn -pl gateway verify` | Pending | `phase-4: add suppression gate and barge-in` |
-| Phase 5 - Metrics + evaluation | Not started | Not run | Pending | Pending |
+| Phase 4 - Suppression + barge-in | Complete | Passed: suppression/barge-in integration tests, `mvn -pl gateway verify` | Complete by human request to start Phase 5; formal 20-question dataset not recorded | `phase-4: add suppression gate and barge-in` |
+| Phase 5 - Metrics + evaluation | Complete | Passed: gateway verify, fixture analysis, stub flow judge, router checks, Python/JS syntax, dashboard JSON validation | Pending | `phase-5: add metrics and evaluation` |
 | Phase 6 - Hardening + packaging | Not started | Not run | Pending | Pending |
 
 ## Phase 0 Acceptance Checklist
@@ -100,4 +100,26 @@
 - [x] `mvn -pl gateway verify` passes.
 - [x] Router-label validation and router eval pass.
 - [x] Python and JS syntax checks pass.
-- [ ] Human 20-question real-runtime suppression-rate checkpoint is complete.
+- [x] Human request to start Phase 5 accepted the checkpoint for phase progression.
+- [ ] Formal 20-question real-runtime suppression-rate dataset is recorded.
+
+## Phase 5 Acceptance Checklist
+
+- [x] JSONL events are mirrored into Micrometer counters.
+- [x] JSONL events with `latencyMs` are mirrored into Micrometer timers.
+- [x] Gateway exposes `/actuator/prometheus`.
+- [x] Prometheus scrape config exists.
+- [x] Grafana datasource, dashboard provider, and dashboard JSON exist.
+- [x] `docker-compose.yml` includes Prometheus and Grafana services.
+- [x] `moshi.first_audio` event logging exists for ASK perceived-latency measurement.
+- [x] `metrics/analyze.py` reads JSONL events and emits `latency_chart.png`.
+- [x] `metrics/analyze.py` emits summary JSON, per-ASK latency CSV, and router confusion matrix CSV.
+- [x] `metrics/judge_flow.py` runs against the committed sample set in stub mode.
+- [x] CI runs fixture analysis and stub flow judge.
+- [x] `mvn -pl gateway verify` passes.
+- [x] Metrics fixture analysis passes.
+- [x] Stub flow judge passes.
+- [x] Router-label validation and router eval pass.
+- [x] Python and JS syntax checks pass.
+- [x] Grafana dashboard JSON validates.
+- [ ] Human real-runtime metrics chart/table is generated and pasted into `README.md`.

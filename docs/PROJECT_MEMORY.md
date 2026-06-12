@@ -1,10 +1,10 @@
 # Project Memory
 
 ## Current Goal
-Stop at the Phase 4 human checkpoint. Phase 4 suppression and barge-in are complete in stub mode: ASK-in-flight Moshi long-answer fading, short acknowledgment pass-through, TTS injection cancellation on user speech, fake-Moshi fixtures, and WebSocket integration tests.
+Stop at the Phase 5 human checkpoint. Phase 5 metrics and evaluation are complete in automated fixture mode: JSONL events are mirrored to Micrometer, Prometheus/Grafana provisioning exists, sample event-log analysis emits a latency chart and CSV/JSON summaries, and the flow-break judge runs in stub mode.
 
 ## Current Phase
-Phase 4 - Suppression + barge-in.
+Phase 5 - Metrics + evaluation.
 
 ## Completed Work
 - Renamed the restart packet to `PLAN.md`.
@@ -69,6 +69,17 @@ Phase 4 - Suppression + barge-in.
 - Added stub Moshi text fixture frames for Java integration tests and `ack` / `long-answer` fixture modes to `stubs/fake-moshi/fake_moshi.py`.
 - Added Phase 4 integration tests for long-answer suppression energy, acknowledgment pass-through, and barge-in cancellation within 500 ms.
 - Ran Phase 4 validation successfully.
+- Human requested Phase 5, which is treated as approval to proceed after Phase 4; a formal 20-question suppression-rate dataset was not separately recorded.
+- Added Micrometer event mirroring through `MetricsFacade`; JSONL events now increment `voice.events` counters and record `voice.event.latency` timers when events contain `latencyMs`.
+- Exposed the gateway Prometheus endpoint at `/actuator/prometheus`.
+- Added `MoshiFirstAudioTracker` to log `moshi.first_audio` for ASK turns when Moshi starts speaking before backend injection.
+- Added Prometheus and Grafana provisioning under `ops/`, including the `Voice Two Brains` dashboard.
+- Updated `docker-compose.yml` with Prometheus, Grafana, and a mounted gateway event-log data directory.
+- Added `metrics/analyze.py` to compute perceived-vs-true ASK latency, suppression rate, barge-in count, stale-drop count, router confusion matrix, and a PNG latency chart from JSONL logs.
+- Added committed metrics fixtures under `metrics/fixtures/`.
+- Added `metrics/judge_flow.py` with stub and OpenAI-compatible real judge modes for natural spoken continuation / flow-break scoring.
+- Wired Phase 5 analysis and stub judge commands into CI.
+- Ran Phase 5 validation successfully.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
@@ -79,6 +90,11 @@ Phase 4 - Suppression + barge-in.
 - The browser can send stub utterances as `{"type":"transcript.user","text":"..."}` over `/ws/voice` for local Phase 2 testing.
 - Phase 3 ASK flow emits `utterance.end`, `router.decision`, `job.dispatched`, `job.completed`, `job.dropped_stale`, `inject.start`, and `inject.end` JSONL events.
 - Phase 4 adds `suppression.faded` and `barge_in` JSONL events.
+- Phase 5 adds `moshi.first_audio` JSONL events for ASK perceived-latency measurement.
+- Every JSONL event is mirrored to Micrometer counter `voice.events`; events with `latencyMs` are mirrored to timer `voice.event.latency`.
+- Prometheus scrapes gateway metrics from `/actuator/prometheus`; Grafana provisioning and the `Voice Two Brains` dashboard live under `ops/grafana/`.
+- `metrics/analyze.py` is standard-library Python and writes `latency_chart.png`, `summary.json`, `ask_latencies.csv`, and `router_confusion_matrix.csv`.
+- `metrics/judge_flow.py` runs in stub mode for CI and can call an OpenAI-compatible `/chat/completions` endpoint in real mode when `LLM_API_KEY` is set.
 - `AskJobService` owns in-process virtual-thread ASK jobs and one active ASK per session; a newer ASK supersedes the previous one.
 - `OutboundMixer` is now the only gateway component that writes binary audio to the browser.
 - `SuppressionGate` sits between Moshi callbacks and `OutboundMixer`; it watches Moshi text during `ASK_IN_FLIGHT` and fades long-answer audio to silence.
@@ -104,6 +120,7 @@ Phase 4 - Suppression + barge-in.
 - Exact Piper voice can be chosen later when the TTS service is implemented.
 - Real hosted LLM router eval has not been run yet.
 - Real hosted LLM answer/harmonizer behavior has not been run yet.
+- Phase 5 real judge has not been run against a real conversation sample set yet.
 
 ## Known Issues
 - `MOSHI_MODE=real` now carries audio through the Java PCM/Ogg-Opus bridge and browser mic capture exists. Automated spoken-phrase probes return Moshi text and decoded PCM. Conversational quality and latency still need a human mic/speaker checkpoint with local Moshi.
@@ -114,10 +131,12 @@ Phase 4 - Suppression + barge-in.
 - If the browser shows `TTS_STREAM_FAILED` with `Exceeded limit on max bytes to buffer : 262144`, the running gateway is stale; rebuild/restart with the commit that streams `DataBuffer` chunks in `RealTtsClient`.
 - FastAPI sidecar virtualenvs should be created with `/opt/homebrew/bin/python3.12` on this Mac. The default `python3` is 3.14 and can fail against pinned Pydantic/PyO3 wheels.
 - `LLM_MODE=real` has been smoke-tested for one backend handoff, but full real-router evaluation has not been run yet.
-- The Phase 4 human checkpoint still needs a scripted real-runtime suppression-rate run. Because `STT_MODE=stub` is still active, fully spoken router handoff is limited until real STT is implemented.
+- Phase 4 was advanced by user request to start Phase 5, but the formal 20-question real-runtime suppression-rate dataset was not recorded as a separate artifact.
+- Existing `data/events.jsonl` predates Phase 5 `moshi.first_audio` instrumentation, so it cannot produce perceived-latency rows until the patched gateway records fresh ASK turns.
+- The Phase 5 human checkpoint still needs a fresh real-runtime metrics run and README chart/table update. Because `STT_MODE=stub` is still active, fully spoken router handoff is limited until real STT is implemented.
 
 ## Next Exact Step
-Human runs the Phase 4 checkpoint in the browser with real Moshi plus the gateway: exercise scripted delegated questions, confirm short Moshi acknowledgments pass, confirm long Moshi answer attempts are faded while the backend answer is pending, and confirm speaking over injected TTS logs `barge_in` and stops playback. Record suppression rate for Phase 5. After approval, a future agent may start Phase 5.
+Human runs the Phase 5 checkpoint with the patched gateway: generate a fresh real event log containing ASK turns, Moshi first audio, suppression, barge-in, and injection events; run `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`; then paste the real chart/table into `README.md`. After approval, a future agent may start Phase 6.
 
 ## Useful Commands
 - `mvn -pl gateway verify`
@@ -126,8 +145,12 @@ Human runs the Phase 4 checkpoint in the browser with real Moshi plus the gatewa
 - `mvn -pl gateway -Dtest=OggOpusCodecTests test`
 - `python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl`
 - `python3 scripts/router_eval.py docs/eval/router-labels.jsonl`
-- `python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py stubs/fake-moshi/fake_moshi.py`
+- `python3 metrics/analyze.py metrics/fixtures/events.jsonl --out metrics/out`
+- `python3 metrics/judge_flow.py metrics/fixtures/judge-samples.jsonl --out metrics/out --mode stub`
+- `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`
+- `python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py`
 - `node --check gateway/src/main/resources/static/app.js && node --check gateway/src/main/resources/static/mic-capture-worklet.js`
+- `docker compose up --build gateway prometheus grafana`
 - `java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar --server.port=0`
 - `python3 stubs/fake-moshi/fake_moshi.py --port 8998`
 - `python3 stubs/fake-moshi/fake_moshi.py --port 8998 --fixture ack`

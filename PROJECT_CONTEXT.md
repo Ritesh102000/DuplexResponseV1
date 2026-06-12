@@ -1,12 +1,12 @@
 # Project Context
 
-Current phase: Phase 4 - Suppression + barge-in.
+Current phase: Phase 5 - Metrics + evaluation.
 
 Current objective:
-Stop at the Phase 4 human checkpoint after adding ASK-in-flight suppression, long-answer fade, acknowledgment pass-through, and barge-in cancellation tests.
+Stop at the Phase 5 human checkpoint after adding metrics, dashboards, offline event-log analysis, and flow-break judging.
 
 Current status:
-Phase 4 automated stub acceptance is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan. The human request to start Phase 4 is treated as approval of the Phase 3 checkpoint. Phase 4 added a configurable `SuppressionGate` for Moshi text-token based audio fading during `ASK_IN_FLIGHT`, a `BargeInDetector` for user speech during `INJECTING`, cancellable TTS injections in `OutboundMixer`, and fake-Moshi `ack` / `long-answer` fixtures. For local spoken backend answers, run `tts-service` on macOS from a Python 3.12 venv and start the gateway with `TTS_MODE=real`; `TTS_MODE=stub` intentionally plays a tone.
+Phase 5 automated fixture acceptance is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan. The human request to start Phase 5 is treated as approval to proceed after Phase 4; a formal 20-question suppression-rate dataset was not separately recorded. Phase 5 added Micrometer event mirroring, `/actuator/prometheus`, provisioned Prometheus and Grafana files, `metrics/analyze.py`, `metrics/judge_flow.py`, committed fixtures, and CI checks for analysis and stub judging. For local spoken backend answers, run `tts-service` on macOS from a Python 3.12 venv and start the gateway with `TTS_MODE=real`; `TTS_MODE=stub` intentionally plays a tone.
 
 Recent real-Moshi probe:
 Local Moshi MLX exists at `/Users/riteshrajput/.venvs/moshi-mlx/bin/python` with `moshi_mlx 0.3.0`. The server starts with `python -m moshi_mlx.local_web -q 4 --host 127.0.0.1 --port 8998 --no-browser`, loads cached `kyutai/moshiko-mlx-q4`, and accepts `/api/chat` with handshake `00`. `RealMoshiClient` bridges raw 24 kHz PCM from the browser to Ogg/Opus for Moshi and decodes Moshi Ogg/Opus back to raw PCM for the browser. Moshi's `sphn` writer emits OpusHead input rate `48000`, so the Java decoder must decode at 48 kHz and downsample to the browser's 24 kHz PCM. The static UI has AudioWorklet mic capture, queued PCM playback, browser audio unlock, a speaker test, and output peak logging.
@@ -18,13 +18,13 @@ Latest handoff test:
 With Moshi still connected in real mode and `LLM_MODE=real`, a typed `transcript.user` for `what is the capital of australia` produced `router.decision` label `ASK` with confidence `0.95`, a harmonized backend answer, `inject.start`, 59 binary PCM frames from real TTS, and `inject.end`.
 
 Next exact step:
-Run the Phase 4 human checkpoint: use real Moshi plus the gateway on scripted delegated questions, confirm short acknowledgments pass, long Moshi answer attempts are faded, and barge-in stops injected TTS. Record suppression rate for the Phase 5 metrics work.
+Run the Phase 5 human checkpoint: restart the gateway from the Phase 5 jar, run scripted real Moshi/backend/TTS sessions so the log contains `moshi.first_audio`, `suppression.faded`, `barge_in`, and injection events, then run `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real` and paste the real chart/table into the README.
 
 Important constraints:
 - Do not guess Moshi's wire protocol.
 - Stub mode is the default for CI and local development.
 - Real Moshi target is local Apple Silicon MLX q4 using `kyutai/moshiko-mlx-q4`.
-- Phase 4 CI acceptance uses stub Moshi/STT/TTS/LLM paths; real Moshi, Piper voice quality, hosted LLM behavior, and suppression-rate measurement remain human checkpoint work.
+- Phase 5 CI acceptance uses committed fixtures and stub judge mode; real Moshi, Piper voice quality, hosted LLM behavior, and real metrics chart/table generation remain human checkpoint work.
 
 Validation completed:
 - `python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl`
@@ -47,3 +47,6 @@ Validation completed:
 - Real backend handoff smoke test: typed ASK through `/ws/voice` while gateway was in `MOSHI_MODE=real`, `LLM_MODE=real`, and `TTS_MODE=real`; observed `router.decision`, backend answer, `inject.start`, 59 audio frames, and `inject.end`.
 - Phase 4 focused validation: `mvn -pl gateway -Dtest=SessionStateMachineTests,Phase4SuppressionBargeInIntegrationTests test`.
 - Phase 4 full validation: `mvn -pl gateway verify`, router-label validation, router eval, Python compile checks including fake Moshi, JS syntax checks, and `git diff --check`.
+- Phase 5 fixture analysis: `python3 metrics/analyze.py metrics/fixtures/events.jsonl --out metrics/out`.
+- Phase 5 stub flow judge: `python3 metrics/judge_flow.py metrics/fixtures/judge-samples.jsonl --out metrics/out --mode stub`.
+- Phase 5 full gateway validation: `mvn -pl gateway verify`.

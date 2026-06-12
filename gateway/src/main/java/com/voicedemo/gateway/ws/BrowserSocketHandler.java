@@ -3,6 +3,7 @@ package com.voicedemo.gateway.ws;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.voicedemo.gateway.session.ConversationCoordinator;
+import com.voicedemo.gateway.metrics.MoshiFirstAudioTracker;
 import com.voicedemo.gateway.session.SessionEvent;
 import com.voicedemo.gateway.session.SessionRegistry;
 import com.voicedemo.gateway.session.SessionState;
@@ -37,6 +38,7 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
     private final OutboundMixer outboundMixer;
     private final SuppressionGate suppressionGate;
     private final BargeInDetector bargeInDetector;
+    private final MoshiFirstAudioTracker moshiFirstAudioTracker;
     private final SessionStateMachine stateMachine;
     private final ObjectMapper objectMapper;
     private final Map<String, SessionState> browserSessions = new ConcurrentHashMap<>();
@@ -51,6 +53,7 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
             OutboundMixer outboundMixer,
             SuppressionGate suppressionGate,
             BargeInDetector bargeInDetector,
+            MoshiFirstAudioTracker moshiFirstAudioTracker,
             SessionStateMachine stateMachine,
             ObjectMapper objectMapper) {
         this.sessionRegistry = sessionRegistry;
@@ -62,6 +65,7 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
         this.outboundMixer = outboundMixer;
         this.suppressionGate = suppressionGate;
         this.bargeInDetector = bargeInDetector;
+        this.moshiFirstAudioTracker = moshiFirstAudioTracker;
         this.stateMachine = stateMachine;
         this.objectMapper = objectMapper;
     }
@@ -81,6 +85,7 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
 
             @Override
             public void onAudio(byte[] pcm) {
+                moshiFirstAudioTracker.onMoshiAudio(state.sessionId());
                 outboundMixer.forwardMoshiAudio(
                         webSocketSession,
                         state.sessionId(),

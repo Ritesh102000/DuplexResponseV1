@@ -6,7 +6,7 @@ This project is a real-time voice assistant demo with Moshi handling live conver
 
 ## Current Phase
 
-Phase 4 - Suppression + barge-in. Automated stub acceptance is complete; human real-runtime suppression checkpoint is next.
+Phase 5 - Metrics + evaluation. Automated fixture acceptance is complete; human real-runtime metrics checkpoint is next.
 
 ## Development Defaults
 
@@ -147,3 +147,60 @@ Fake Moshi suppression fixtures:
 python3 stubs/fake-moshi/fake_moshi.py --port 8998 --fixture ack
 python3 stubs/fake-moshi/fake_moshi.py --port 8998 --fixture long-answer
 ```
+
+## Phase 5 Checks
+
+Phase 5 mirrors JSONL events into Micrometer metrics, exposes Prometheus at
+`/actuator/prometheus`, adds Prometheus/Grafana provisioning, and adds offline
+analysis for latency, suppression rate, router confusion, and flow-break judging.
+
+```sh
+mvn -pl gateway verify
+python3 metrics/analyze.py metrics/fixtures/events.jsonl --out metrics/out
+python3 metrics/judge_flow.py metrics/fixtures/judge-samples.jsonl --out metrics/out --mode stub
+python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
+python3 scripts/router_eval.py docs/eval/router-labels.jsonl
+python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py
+node --check gateway/src/main/resources/static/app.js
+node --check gateway/src/main/resources/static/mic-capture-worklet.js
+```
+
+The fixture analysis writes:
+
+- `metrics/out/latency_chart.png`
+- `metrics/out/summary.json`
+- `metrics/out/ask_latencies.csv`
+- `metrics/out/router_confusion_matrix.csv`
+- `metrics/out/judge_summary.json`
+- `metrics/out/judge_results.jsonl`
+
+Fixture headline results from Phase 5 validation:
+
+| Metric | Value |
+|---|---:|
+| ASK latency rows | 3 |
+| Perceived latency median | 670 ms |
+| Perceived latency p95 | 805 ms |
+| True latency median | 9830 ms |
+| True latency p95 | 11189 ms |
+| Suppression rate | 33.3% |
+| Stub judge flow-break rate | 33.3% |
+
+To analyze a real gateway event log after running the patched gateway:
+
+```sh
+python3 metrics/analyze.py data/events.jsonl --out metrics/out-real
+```
+
+Older event logs from before Phase 5 do not contain `moshi.first_audio`, so
+perceived latency can only be computed for sessions recorded after this phase.
+
+To run Prometheus and Grafana:
+
+```sh
+mvn -pl gateway package
+docker compose up --build gateway prometheus grafana
+```
+
+Open `http://localhost:3000` with `admin` / `admin`, then open the
+`Voice Two Brains` dashboard. Prometheus is available at `http://localhost:9090`.

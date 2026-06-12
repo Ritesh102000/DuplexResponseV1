@@ -1,6 +1,7 @@
 package com.voicedemo.gateway.session;
 
 import com.voicedemo.gateway.metrics.EventLogger;
+import com.voicedemo.gateway.metrics.MoshiFirstAudioTracker;
 import com.voicedemo.gateway.jobs.AskJobRequest;
 import com.voicedemo.gateway.jobs.AskJobResult;
 import com.voicedemo.gateway.jobs.AskJobResultType;
@@ -35,6 +36,7 @@ public class ConversationCoordinator {
     private final OutboundMixer outboundMixer;
     private final SuppressionGate suppressionGate;
     private final BargeInDetector bargeInDetector;
+    private final MoshiFirstAudioTracker moshiFirstAudioTracker;
     private final SessionStateMachine stateMachine;
 
     public ConversationCoordinator(
@@ -47,6 +49,7 @@ public class ConversationCoordinator {
             OutboundMixer outboundMixer,
             SuppressionGate suppressionGate,
             BargeInDetector bargeInDetector,
+            MoshiFirstAudioTracker moshiFirstAudioTracker,
             SessionStateMachine stateMachine) {
         this.transcriptService = transcriptService;
         this.routerService = routerService;
@@ -57,6 +60,7 @@ public class ConversationCoordinator {
         this.outboundMixer = outboundMixer;
         this.suppressionGate = suppressionGate;
         this.bargeInDetector = bargeInDetector;
+        this.moshiFirstAudioTracker = moshiFirstAudioTracker;
         this.stateMachine = stateMachine;
     }
 
@@ -79,6 +83,7 @@ public class ConversationCoordinator {
         if (decision.label() == RouteLabel.ASK) {
             state.apply(stateMachine, SessionEvent.ROUTER_ASK);
             suppressionGate.startAsk(sessionId, correlationId);
+            moshiFirstAudioTracker.startAsk(sessionId, correlationId, line.utteranceId());
             AskJobRequest request = new AskJobRequest(
                     correlationId,
                     sessionId,
@@ -121,6 +126,7 @@ public class ConversationCoordinator {
         outboundMixer.reset(sessionId);
         suppressionGate.reset(sessionId);
         bargeInDetector.reset(sessionId);
+        moshiFirstAudioTracker.clear(sessionId);
         transcriptService.remove(sessionId);
     }
 
@@ -128,6 +134,7 @@ public class ConversationCoordinator {
         if (result.type() == AskJobResultType.DROPPED) {
             state.apply(stateMachine, SessionEvent.JOB_RESULT_STALE_DROP);
             suppressionGate.endAsk(result.sessionId());
+            moshiFirstAudioTracker.clear(result.sessionId());
             return;
         }
 
@@ -136,6 +143,7 @@ public class ConversationCoordinator {
                 result.reintroduced() ? SessionEvent.JOB_RESULT_STALE_REINTRODUCE : SessionEvent.JOB_RESULT_FRESH
         );
         suppressionGate.endAsk(result.sessionId());
+        moshiFirstAudioTracker.clear(result.sessionId());
         transcriptService.addMoshiText(result.sessionId(), result.text());
         controlMessageSender.moshiTranscript(socketSession, result.sessionId(), result.text());
         controlMessageSender.injectStart(socketSession, result.sessionId(), result.correlationId());

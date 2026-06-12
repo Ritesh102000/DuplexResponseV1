@@ -17,10 +17,12 @@ import java.util.Map;
 public class EventLogger {
     private final ObjectMapper objectMapper;
     private final Path path;
+    private final MetricsFacade metricsFacade;
 
-    public EventLogger(ObjectMapper objectMapper, ModeProperties properties) {
+    public EventLogger(ObjectMapper objectMapper, ModeProperties properties, MetricsFacade metricsFacade) {
         this.objectMapper = objectMapper;
         this.path = Path.of(properties.eventLogPath());
+        this.metricsFacade = metricsFacade;
     }
 
     public synchronized void log(String event, String sessionId, Map<String, Object> attributes) {
@@ -29,6 +31,7 @@ public class EventLogger {
         payload.put("sessionId", sessionId);
         payload.put("ts", Instant.now().toEpochMilli());
         payload.putAll(attributes);
+        metricsFacade.recordEvent(event, attributes);
         try {
             Path parent = path.getParent();
             if (parent != null) {
@@ -46,4 +49,3 @@ public class EventLogger {
         }
     }
 }
-
