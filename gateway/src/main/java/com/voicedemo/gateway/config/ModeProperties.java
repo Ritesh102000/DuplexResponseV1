@@ -9,6 +9,9 @@ public record ModeProperties(
         String sttMode,
         String ttsMode,
         String llmMode,
+        String llmBaseUrl,
+        String llmApiKey,
+        String llmModelRouter,
         int askTimeoutMs,
         int staleTurnLimit,
         String eventLogPath) {

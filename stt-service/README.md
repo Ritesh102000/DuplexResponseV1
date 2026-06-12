@@ -1,4 +1,21 @@
 # STT Service
 
-Phase 0 placeholder for the FastAPI sidecar. Later phases add Silero VAD and faster-whisper small CPU support.
+FastAPI sidecar scaffold for Phase 2.
+
+CI and normal development use `STT_MODE=stub` in the Java gateway. This service
+exposes a lightweight health endpoint and a stub utterance endpoint while the
+real Silero VAD + faster-whisper runtime remains behind the sidecar boundary.
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8081
+```
+
+Endpoints:
+
+- `GET /health`
+- `POST /stub/utterance` with `{"text":"what is the capital of australia"}`
+- `POST /transcribe` placeholder for real audio transcription
 

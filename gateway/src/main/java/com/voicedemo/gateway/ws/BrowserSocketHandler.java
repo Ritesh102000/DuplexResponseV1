@@ -1,8 +1,12 @@
 package com.voicedemo.gateway.ws;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voicedemo.gateway.session.ConversationCoordinator;
 import com.voicedemo.gateway.session.SessionRegistry;
 import com.voicedemo.gateway.session.SessionState;
 import com.voicedemo.gateway.speech.AudioInboundPipeline;
+import com.voicedemo.gateway.speech.SttClient;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
@@ -22,24 +26,35 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
     private final SessionRegistry sessionRegistry;
     private final AudioInboundPipeline audioInboundPipeline;
     private final MoshiClient moshiClient;
+    private final SttClient sttClient;
     private final ControlMessageSender controlMessageSender;
+    private final ConversationCoordinator conversationCoordinator;
+    private final ObjectMapper objectMapper;
     private final Map<String, SessionState> browserSessions = new ConcurrentHashMap<>();
 
     public BrowserSocketHandler(
             SessionRegistry sessionRegistry,
             AudioInboundPipeline audioInboundPipeline,
             MoshiClient moshiClient,
-            ControlMessageSender controlMessageSender) {
+            SttClient sttClient,
+            ControlMessageSender controlMessageSender,
+            ConversationCoordinator conversationCoordinator,
+            ObjectMapper objectMapper) {
         this.sessionRegistry = sessionRegistry;
         this.audioInboundPipeline = audioInboundPipeline;
         this.moshiClient = moshiClient;
+        this.sttClient = sttClient;
         this.controlMessageSender = controlMessageSender;
+        this.conversationCoordinator = conversationCoordinator;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession webSocketSession) {
         SessionState state = sessionRegistry.create(requestedSessionId(webSocketSession.getUri()));
         browserSessions.put(webSocketSession.getId(), state);
+        sttClient.connect(state.sessionId(), (text, endTs) ->
+                conversationCoordinator.onUserUtterance(webSocketSession, state.sessionId(), text, endTs));
         moshiClient.connect(state.sessionId(), new MoshiCallbacks() {
             @Override
             public void onOpen() {
@@ -54,7 +69,7 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
 
             @Override
             public void onText(String text) {
-                controlMessageSender.moshiTranscript(webSocketSession, state.sessionId(), text);
+                conversationCoordinator.onMoshiText(webSocketSession, state.sessionId(), text);
             }
 
             @Override
@@ -84,8 +99,23 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        // Phase 1 reserves browser text messages for future control messages. Debug/control
-        // messages emitted to the browser are sent by ControlMessageSender.
+        SessionState state = browserSessions.get(session.getId());
+        if (state == null) {
+            controlMessageSender.error(session, "SESSION_NOT_FOUND", "No gateway session for browser socket");
+            return;
+        }
+        try {
+            JsonNode json = objectMapper.readTree(message.getPayload());
+            if ("transcript.user".equals(json.path("type").asText())) {
+                sttClient.submitUtterance(
+                        state.sessionId(),
+                        json.path("text").asText(),
+                        json.path("ts").asLong(System.currentTimeMillis())
+                );
+            }
+        } catch (Exception e) {
+            controlMessageSender.error(session, "BAD_CONTROL_MESSAGE", e.getMessage());
+        }
     }
 
     @Override
@@ -94,6 +124,7 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
         if (state != null) {
             state.markIdle();
             moshiClient.disconnect(state.sessionId());
+            sttClient.disconnect(state.sessionId());
             sessionRegistry.remove(state.sessionId());
         }
     }
@@ -132,4 +163,3 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
         }
     }
 }
-

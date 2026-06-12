@@ -38,6 +38,21 @@ h2 {
   gap: 8px;
 }
 
+.utterance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+input {
+  min-height: 36px;
+  border: 1px solid #b9c0ca;
+  border-radius: 6px;
+  padding: 0 10px;
+  font: inherit;
+}
+
 button {
   min-height: 36px;
   border: 1px solid #b9c0ca;
@@ -69,4 +84,3 @@ button:disabled {
   background: #ffffff;
   white-space: pre-wrap;
 }
-

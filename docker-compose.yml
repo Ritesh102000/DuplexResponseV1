@@ -15,4 +15,8 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-
+  stt:
+    build:
+      context: ./stt-service
+    ports:
+      - "8081:8081"

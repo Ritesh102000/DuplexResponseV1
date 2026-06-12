@@ -2,6 +2,7 @@ package com.voicedemo.gateway.ws;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voicedemo.gateway.router.RouteDecision;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -36,6 +37,27 @@ public class ControlMessageSender {
         ));
     }
 
+    public void userTranscript(WebSocketSession session, String sessionId, String utteranceId, String text, long ts) {
+        send(session, Map.of(
+                "type", "transcript.user",
+                "sessionId", sessionId,
+                "utteranceId", utteranceId,
+                "text", text,
+                "ts", ts
+        ));
+    }
+
+    public void routerDecision(WebSocketSession session, String sessionId, String utteranceId, RouteDecision decision) {
+        send(session, Map.of(
+                "type", "router.decision",
+                "sessionId", sessionId,
+                "utteranceId", utteranceId,
+                "label", decision.label().name(),
+                "confidence", decision.confidence(),
+                "ts", Instant.now().toEpochMilli()
+        ));
+    }
+
     public void error(WebSocketSession session, String code, String message) {
         send(session, Map.of(
                 "type", "error",
@@ -62,4 +84,3 @@ public class ControlMessageSender {
         return objectMapper.writeValueAsString(new LinkedHashMap<>(payload));
     }
 }
-

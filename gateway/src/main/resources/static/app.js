@@ -1,6 +1,8 @@
 const connectButton = document.querySelector("#connect");
 const disconnectButton = document.querySelector("#disconnect");
 const toneButton = document.querySelector("#tone");
+const sendUtteranceButton = document.querySelector("#sendUtterance");
+const utteranceInput = document.querySelector("#utterance");
 const statusEl = document.querySelector("#status");
 const debugEl = document.querySelector("#debug");
 
@@ -16,6 +18,7 @@ function setConnected(connected) {
   connectButton.disabled = connected;
   disconnectButton.disabled = !connected;
   toneButton.disabled = !connected;
+  sendUtteranceButton.disabled = !connected;
   statusEl.textContent = connected ? "Connected" : "Disconnected";
 }
 
@@ -81,3 +84,15 @@ toneButton.addEventListener("click", () => {
   log("sent 80ms test PCM frame");
 });
 
+sendUtteranceButton.addEventListener("click", () => {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  const payload = {
+    type: "transcript.user",
+    text: utteranceInput.value,
+    ts: Date.now(),
+  };
+  socket.send(JSON.stringify(payload));
+  log(`sent ${JSON.stringify(payload)}`);
+});

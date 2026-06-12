@@ -18,4 +18,5 @@ jobs:
         run: mvn verify
       - name: Validate router labels
         run: python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
-
+      - name: Evaluate heuristic router
+        run: python3 scripts/router_eval.py docs/eval/router-labels.jsonl

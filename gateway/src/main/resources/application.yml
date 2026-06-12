@@ -17,6 +17,9 @@ voice:
   stt-mode: ${STT_MODE:stub}
   tts-mode: ${TTS_MODE:stub}
   llm-mode: ${LLM_MODE:stub}
+  llm-base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
+  llm-api-key: ${LLM_API_KEY:}
+  llm-model-router: ${LLM_MODEL_ROUTER:gpt-5.4-mini}
   ask-timeout-ms: ${ASK_TIMEOUT_MS:20000}
   stale-turn-limit: ${STALE_TURN_LIMIT:2}
   event-log-path: ${EVENT_LOG_PATH:./data/events.jsonl}

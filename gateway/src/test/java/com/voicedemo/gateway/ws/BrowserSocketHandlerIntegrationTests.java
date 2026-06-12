@@ -65,6 +65,23 @@ class BrowserSocketHandlerIntegrationTests {
         secondSession.close();
     }
 
+    @Test
+    void routesStubTranscriptUserMessage() throws Exception {
+        ProbeHandler handler = new ProbeHandler();
+        WebSocketSession session = connect("phase2-router", handler);
+        handler.awaitSessionStart();
+
+        session.sendMessage(new TextMessage("""
+                {"type":"transcript.user","text":"what is the capital of australia","ts":1718200000000}
+                """));
+
+        String decision = handler.awaitRouterDecision();
+        assertThat(decision).contains("\"type\":\"router.decision\"");
+        assertThat(decision).contains("\"label\":\"ASK\"");
+
+        session.close();
+    }
+
     private WebSocketSession connect(String sessionId, ProbeHandler handler) throws Exception {
         StandardWebSocketClient client = new StandardWebSocketClient();
         URI uri = URI.create("ws://localhost:" + port + "/ws/voice?sessionId=" + sessionId);
@@ -82,6 +99,7 @@ class BrowserSocketHandlerIntegrationTests {
 
     private static final class ProbeHandler extends BinaryWebSocketHandler {
         private final CompletableFuture<String> sessionStart = new CompletableFuture<>();
+        private final CompletableFuture<String> routerDecision = new CompletableFuture<>();
         private final CompletableFuture<byte[]> firstBinary = new CompletableFuture<>();
         private final CompletableFuture<CloseStatus> close = new CompletableFuture<>();
         private final List<String> textMessages = new CopyOnWriteArrayList<>();
@@ -91,6 +109,9 @@ class BrowserSocketHandlerIntegrationTests {
             textMessages.add(message.getPayload());
             if (message.getPayload().contains("\"type\":\"session.start\"")) {
                 sessionStart.complete(message.getPayload());
+            }
+            if (message.getPayload().contains("\"type\":\"router.decision\"")) {
+                routerDecision.complete(message.getPayload());
             }
         }
 
@@ -112,6 +133,10 @@ class BrowserSocketHandlerIntegrationTests {
             return firstBinary.get(5, TimeUnit.SECONDS);
         }
 
+        String awaitRouterDecision() throws Exception {
+            return routerDecision.get(5, TimeUnit.SECONDS);
+        }
+
         CloseStatus awaitClose() throws Exception {
             return close.get(5, TimeUnit.SECONDS);
         }
@@ -123,4 +148,3 @@ class BrowserSocketHandlerIntegrationTests {
         }
     }
 }
-

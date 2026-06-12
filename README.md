@@ -37,3 +37,32 @@ java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar
 ```
 
 Then open `http://localhost:8080` and use **Connect** followed by **Send Test Frame**.
+
+## Phase 2 Checks
+
+Phase 2 adds transcript buffering and router decisions.
+
+```sh
+python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
+python3 scripts/router_eval.py docs/eval/router-labels.jsonl
+mvn verify
+```
+
+To try the browser router path:
+
+```sh
+java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar
+```
+
+Open `http://localhost:8080`, click **Connect**, then click **Send Utterance**.
+The debug panel should show `transcript.user` and `router.decision` messages.
+
+The STT sidecar scaffold can be started separately:
+
+```sh
+cd stt-service
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8081
+```

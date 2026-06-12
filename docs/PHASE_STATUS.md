@@ -3,8 +3,8 @@
 | Phase | Status | Acceptance Tests | Human Checkpoint | Commit |
 |---|---|---|---|---|
 | Phase 0 - Model decisions + scaffold | Complete | Passed: router-label validation, `mvn verify`, packaged gateway boot | Complete | `phase-0: scaffold project and record model decisions` |
-| Phase 1 - Moshi protocol + proxy | Complete | Passed: protocol tests, WebSocket proxy integration tests, reconnect test, `mvn verify` | Pending | `phase-1: document moshi protocol and add ws proxy` |
-| Phase 2 - Transcripts + router | Not started | Not run | Pending | Pending |
+| Phase 1 - Moshi protocol + proxy | Complete | Passed: protocol tests, WebSocket proxy integration tests, reconnect test, `mvn verify` | Complete | `phase-1: document moshi protocol and add ws proxy` |
+| Phase 2 - Transcripts + router | Complete | Passed: router-label validation, router eval, heuristic router tests, transcript buffer tests, WebSocket route-decision integration, `mvn verify` | Pending | `phase-2: add transcripts and router` |
 | Phase 3 - Ask flow end-to-end | Not started | Not run | Pending | Pending |
 | Phase 4 - Suppression + barge-in | Not started | Not run | Pending | Pending |
 | Phase 5 - Metrics + evaluation | Not started | Not run | Pending | Pending |
@@ -35,4 +35,22 @@
 - [x] Integration test asserts byte-equivalent PCM pass-through in stub mode.
 - [x] Reconnect test asserts session reset after stub drop.
 - [x] `mvn verify` passes.
-- [ ] Human real-Moshi checkpoint is complete.
+- [x] Human real-Moshi checkpoint is accepted by request to start Phase 2.
+
+## Phase 2 Acceptance Checklist
+
+- [x] STT sidecar scaffold exists.
+- [x] Java `SttClient` interface has stub and real-mode boundary implementations.
+- [x] Transcript ring buffer preserves ordering and caps history.
+- [x] Router service supports heuristic mode and real LLM mode with fallback.
+- [x] ACT route has a canned Phase 2 response path.
+- [x] `router.decision` control messages are emitted to the browser.
+- [x] Router decisions and utterance events are written to the JSONL event log.
+- [x] Offline router eval script runs against `docs/eval/router-labels.jsonl`.
+- [x] Heuristic router tests cover the label set and ambiguous cases.
+- [x] Transcript buffer tests pass.
+- [x] WebSocket integration test covers stub transcript routing.
+- [x] `python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl` passes.
+- [x] `python3 scripts/router_eval.py docs/eval/router-labels.jsonl` passes.
+- [x] `mvn verify` passes.
+- [ ] Human real-LLM router checkpoint is complete.
