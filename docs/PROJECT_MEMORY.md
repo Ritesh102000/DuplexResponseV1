@@ -56,6 +56,7 @@ Phase 3 - Ask flow end-to-end.
 - Updated browser control messages to include ASK `correlationId`, `inject.start`, and `inject.end`.
 - Added Phase 3 tests for state transitions, exact ASK event sequence, injected TTS audio, Moshi suppression during injection, stale drop, and supersede.
 - Ran Phase 3 validation successfully.
+- Updated `tts-service` after browser testing so macOS local runs use `say` + `afconvert` for spoken WAV output; the deterministic tone remains the fallback for stub/CI environments.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
@@ -92,7 +93,7 @@ Phase 3 - Ask flow end-to-end.
 ## Known Issues
 - `MOSHI_MODE=real` now carries audio through the Java PCM/Ogg-Opus bridge and browser mic capture exists. A spoken-phrase probe returned Moshi text and decoded PCM, but conversational quality and latency still need a human mic/speaker checkpoint with local Moshi.
 - `STT_MODE=real` is scaffolded but real streaming transcription is not implemented beyond sidecar boundaries.
-- `TTS_MODE=real` has a gateway-side client and FastAPI sidecar contract, but the sidecar currently generates deterministic placeholder WAV audio until a concrete Piper voice/model path is installed.
+- `TTS_MODE=real` has a gateway-side client and FastAPI sidecar contract. On macOS it can speak through `say` + `afconvert`; on systems without those tools it falls back to deterministic tone audio until a concrete Piper voice/model path is installed.
 - `ROUTER_MODE=real` has an OpenAI-compatible client and fallback path, but it has not been exercised with a real API key/model in this phase.
 - Phase 3 injection suppresses Moshi audio during injected TTS. Smooth fade/duck polish and barge-in cancellation are Phase 4 work.
 

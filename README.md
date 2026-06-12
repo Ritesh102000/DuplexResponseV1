@@ -91,7 +91,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8081
 
 ## Phase 3 Checks
 
-Phase 3 adds the ASK job flow: correlation IDs, per-session supersede, stale-drop policy, delayed backend answer, harmonizer, TTS injection, and outbound mixer suppression while injected audio plays.
+Phase 3 adds the ASK job flow: correlation IDs, per-session supersede, stale-drop policy, delayed backend answer, harmonizer, TTS injection, and outbound mixer suppression while injected audio plays. `TTS_MODE=stub` plays a tone; use `TTS_MODE=real` with the TTS sidecar to hear spoken local responses.
 
 ```sh
 mvn -pl gateway -Dtest=SessionStateMachineTests,Phase3AskFlowIntegrationTests test
@@ -119,3 +119,6 @@ python3 -m venv .venv
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8082
 ```
+
+Then start the gateway with `TTS_MODE=real`. On macOS, the sidecar uses the
+system `say` voice and returns 24 kHz mono WAV audio to the gateway.

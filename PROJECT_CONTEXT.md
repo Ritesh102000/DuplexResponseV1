@@ -6,7 +6,7 @@ Current objective:
 Stop at the Phase 3 human checkpoint after adding the stub-mode ASK flow: delayed backend answer job, correlation IDs, supersede/stale policy, harmonizer, TTS injection, outbound mixer suppression, and Phase 3 tests.
 
 Current status:
-Phase 3 automated acceptance is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan. The human request to start Phase 3 is treated as approval of the Phase 2 checkpoint.
+Phase 3 automated acceptance is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan. The human request to start Phase 3 is treated as approval of the Phase 2 checkpoint. For local spoken backend answers, run `tts-service` on macOS and start the gateway with `TTS_MODE=real`; `TTS_MODE=stub` intentionally plays a tone.
 
 Recent real-Moshi probe:
 Local Moshi MLX exists at `/Users/riteshrajput/.venvs/moshi-mlx/bin/python` with `moshi_mlx 0.3.0`. The server starts with `python -m moshi_mlx.local_web -q 4 --host 127.0.0.1 --port 8998 --no-browser`, loads cached `kyutai/moshiko-mlx-q4`, and accepts `/api/chat` with handshake `00`. `RealMoshiClient` bridges raw 24 kHz PCM from the browser to Ogg/Opus for Moshi and decodes Moshi Ogg/Opus back to raw PCM for the browser. Moshi's `sphn` writer emits OpusHead input rate `48000`, so the Java decoder must decode at 48 kHz and downsample to the browser's 24 kHz PCM. The static UI has AudioWorklet mic capture, queued PCM playback, browser audio unlock, a speaker test, and output peak logging.
@@ -33,3 +33,4 @@ Validation completed:
 - Phase 2 router and transcript tests: heuristic router label-set coverage, ambiguous routing checks, transcript ordering/capacity, and browser transcript route-decision integration.
 - Phase 3 ASK-flow tests: exhaustive session state table, WebSocket ASK event sequence, injected TTS audio, Moshi-audio suppression during injection, stale-drop policy, and supersede policy.
 - Phase 3 validation: `mvn -pl gateway -Dtest=SessionStateMachineTests,Phase3AskFlowIntegrationTests test`, `mvn -pl gateway verify`, router-label validation, Python compile checks, JS syntax checks, and `git diff --check`.
+- Local TTS probe: macOS `say` + `afconvert` produced 24 kHz, 16-bit mono WAV for backend answer speech.
