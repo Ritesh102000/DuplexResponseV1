@@ -58,6 +58,7 @@ Phase 3 - Ask flow end-to-end.
 - Ran Phase 3 validation successfully.
 - Updated `tts-service` after browser testing so macOS local runs use `say` + `afconvert` for spoken WAV output; the deterministic tone remains the fallback for stub/CI environments.
 - Rebuilt the TTS virtualenv with `/opt/homebrew/bin/python3.12` after Python 3.14 failed to install pinned `pydantic-core`; local sidecar docs now use Python 3.12 explicitly.
+- Fixed real-TTS injection completion by making `RealTtsClient` fetch audio inside the reactive stream and pacing outbound TTS PCM frames in `OutboundMixer`; verified WebSocket real-TTS smoke receives 24 binary frames and `inject.end`.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
@@ -95,6 +96,7 @@ Phase 3 - Ask flow end-to-end.
 - `MOSHI_MODE=real` now carries audio through the Java PCM/Ogg-Opus bridge and browser mic capture exists. A spoken-phrase probe returned Moshi text and decoded PCM, but conversational quality and latency still need a human mic/speaker checkpoint with local Moshi.
 - `STT_MODE=real` is scaffolded but real streaming transcription is not implemented beyond sidecar boundaries.
 - `TTS_MODE=real` has a gateway-side client and FastAPI sidecar contract. On macOS it can speak through `say` + `afconvert`; on systems without those tools it falls back to deterministic tone audio until a concrete Piper voice/model path is installed.
+- `OutboundMixer` paces injected PCM frames at 80 ms/frame. If the browser shows `inject.start` without `inject.end`, restart the gateway to make sure the patched jar is running.
 - FastAPI sidecar virtualenvs should be created with `/opt/homebrew/bin/python3.12` on this Mac. The default `python3` is 3.14 and can fail against pinned Pydantic/PyO3 wheels.
 - `ROUTER_MODE=real` has an OpenAI-compatible client and fallback path, but it has not been exercised with a real API key/model in this phase.
 - Phase 3 injection suppresses Moshi audio during injected TTS. Smooth fade/duck polish and barge-in cancellation are Phase 4 work.

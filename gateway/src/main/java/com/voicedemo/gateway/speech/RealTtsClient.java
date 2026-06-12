@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 import java.util.Map;
@@ -20,15 +21,18 @@ public class RealTtsClient implements TtsClient {
 
     @Override
     public Flux<byte[]> speak(String text) {
-        byte[] audio = webClient.post()
-                .uri("/speak")
-                .bodyValue(Map.of("text", text))
-                .retrieve()
-                .bodyToMono(byte[].class)
-                .block(Duration.ofSeconds(15));
-        if (audio == null || audio.length == 0) {
-            return Flux.empty();
-        }
-        return Flux.fromIterable(PcmFrames.split(PcmFrames.stripWavHeaderIfPresent(audio)));
+        return Flux.defer(() -> {
+                    byte[] audio = webClient.post()
+                            .uri("/speak")
+                            .bodyValue(Map.of("text", text))
+                            .retrieve()
+                            .bodyToMono(byte[].class)
+                            .block(Duration.ofSeconds(15));
+                    if (audio == null || audio.length == 0) {
+                        return Flux.empty();
+                    }
+                    return Flux.fromIterable(PcmFrames.split(PcmFrames.stripWavHeaderIfPresent(audio)));
+                })
+                .subscribeOn(Schedulers.boundedElastic());
     }
 }
