@@ -58,7 +58,7 @@ java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar
 
 Open `http://localhost:8080`, click **Test Speaker** to confirm browser output, then click **Connect** and **Start Mic**. The gateway keeps the browser side as raw 24 kHz PCM and bridges to Moshi's Ogg/Opus protocol internally.
 
-If you see Moshi text in the debug panel but cannot hear audio, check the binary audio lines. `peak` is the raw decoded Moshi PCM level and `out` is the browser output level after gain; values near `0.000` mean Moshi is returning silence for that chunk.
+If you see Moshi text in the debug panel but cannot hear audio, check the binary audio lines. `peak` is the raw decoded Moshi PCM level and `out` is the browser output level; values near `0.000` mean Moshi is returning silence for that chunk.
 
 ## Phase 2 Checks
 

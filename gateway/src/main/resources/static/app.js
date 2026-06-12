@@ -24,7 +24,7 @@ let outputSources = new Set();
 
 const TARGET_SAMPLE_RATE = 24000;
 const BROWSER_FRAME_SAMPLES = Math.floor(TARGET_SAMPLE_RATE * 0.08);
-const OUTPUT_GAIN = 6;
+const OUTPUT_GAIN = 1;
 
 function log(line) {
   debugEl.textContent += `${new Date().toISOString()} ${line}\n`;

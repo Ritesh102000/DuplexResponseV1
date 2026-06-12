@@ -11,7 +11,8 @@ import java.util.Arrays;
 import java.util.List;
 
 public class OggOpusDecoder {
-    private static final int SAMPLE_RATE = 24_000;
+    private static final int OPUS_DECODE_SAMPLE_RATE = 48_000;
+    private static final int TARGET_SAMPLE_RATE = 24_000;
     private static final int CHANNELS = 1;
     private static final int MAX_FRAME_SAMPLES = 5_760;
 
@@ -20,7 +21,7 @@ public class OggOpusDecoder {
 
     public OggOpusDecoder() {
         try {
-            this.decoder = new OpusDecoder(SAMPLE_RATE, CHANNELS);
+            this.decoder = new OpusDecoder(OPUS_DECODE_SAMPLE_RATE, CHANNELS);
         } catch (OpusException e) {
             throw new IllegalStateException("failed to create Opus decoder", e);
         }
@@ -34,7 +35,7 @@ public class OggOpusDecoder {
             }
             short[] pcm = new short[MAX_FRAME_SAMPLES * CHANNELS];
             int samples = decodePacket(packet, pcm);
-            pcmChunks.add(shortsToPcmBytes(pcm, samples * CHANNELS));
+            pcmChunks.add(shortsToPcmBytes(downsampleToTarget(pcm, samples), downsampledCount(samples)));
         }
         return pcmChunks;
     }
@@ -45,6 +46,28 @@ public class OggOpusDecoder {
         } catch (OpusException e) {
             throw new IllegalStateException("failed to decode Moshi Opus packet", e);
         }
+    }
+
+    private short[] downsampleToTarget(short[] pcm, int samples) {
+        if (OPUS_DECODE_SAMPLE_RATE == TARGET_SAMPLE_RATE) {
+            return Arrays.copyOf(pcm, samples * CHANNELS);
+        }
+        if (OPUS_DECODE_SAMPLE_RATE != TARGET_SAMPLE_RATE * 2 || CHANNELS != 1) {
+            throw new IllegalStateException("unsupported Opus decode rate " + OPUS_DECODE_SAMPLE_RATE);
+        }
+
+        short[] downsampled = new short[downsampledCount(samples)];
+        for (int input = 0, output = 0; input + 1 < samples; input += 2, output++) {
+            downsampled[output] = (short) ((pcm[input] + pcm[input + 1]) / 2);
+        }
+        return downsampled;
+    }
+
+    private int downsampledCount(int samples) {
+        if (OPUS_DECODE_SAMPLE_RATE == TARGET_SAMPLE_RATE) {
+            return samples * CHANNELS;
+        }
+        return samples / 2;
     }
 
     private boolean isOpusHeader(byte[] packet) {

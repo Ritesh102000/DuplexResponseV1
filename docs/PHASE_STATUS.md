@@ -37,7 +37,8 @@
 - [x] `MOSHI_MODE=real` bridges browser raw PCM to Moshi Ogg/Opus and decodes Moshi Ogg/Opus back to raw PCM.
 - [x] Browser UI has AudioWorklet microphone capture for real Moshi testing through the project gateway.
 - [x] Local real-Moshi smoke test through `/ws/voice` returns decoded PCM.
-- [x] Browser output path has audio unlock, queued PCM playback, speaker test, peak logging, and output gain for quiet Moshi PCM.
+- [x] Moshi `sphn` response audio decodes at 48 kHz and downsamples to browser 24 kHz PCM.
+- [x] Browser output path has audio unlock, queued PCM playback, speaker test, and peak logging.
 - [x] `mvn verify` passes.
 - [x] Human real-Moshi checkpoint is accepted by request to start Phase 2.
 

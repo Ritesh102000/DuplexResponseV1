@@ -44,7 +44,9 @@ Phase 2 - Transcripts + router.
 - Added AudioWorklet microphone capture to the static browser UI with 24 kHz/80 ms PCM packetization.
 - Added Ogg/Opus codec unit tests and fixed WebSocket send/close race handling.
 - Ran a local real-Moshi gateway smoke test through `/ws/voice` and received decoded PCM from real Moshi.
-- Improved browser response playback with audio-context unlock, sequential PCM scheduling, a local speaker test, debug peak logging, and 6x clipped output gain after a spoken-phrase probe showed Moshi raw PCM peaks around 0.039.
+- Improved browser response playback with audio-context unlock, sequential PCM scheduling, a local speaker test, and debug peak logging.
+- Fixed the actual Moshi response-audio distortion by decoding Moshi `sphn` Opus at 48 kHz, then downsampling to the browser's 24 kHz PCM; reduced browser output gain back to unity and added a Moshi-style `sphn` Opus fixture test.
+- Re-ran a clean local real-Moshi spoken-phrase probe after the decoder-rate fix; the patched gateway returned 26 text/control messages, 216 binary PCM chunks, and max decoded peak about 0.5909.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
@@ -55,8 +57,9 @@ Phase 2 - Transcripts + router.
 - The browser can send stub utterances as `{"type":"transcript.user","text":"..."}` over `/ws/voice` for local Phase 2 testing.
 - Local real Moshi is installed at `/Users/riteshrajput/.venvs/moshi-mlx/bin/python` and can be started with `python -m moshi_mlx.local_web -q 4 --host 127.0.0.1 --port 8998 --no-browser`.
 - In `MOSHI_MODE=real`, the gateway now keeps the browser contract as raw 24 kHz PCM and bridges to Moshi's Ogg/Opus WebSocket payloads internally.
+- Moshi `sphn` response streams use an OpusHead input rate of 48 kHz. `OggOpusDecoder` must decode at 48 kHz and downsample to 24 kHz; decoding those packets directly at 24 kHz produces corrupted/near-silent audio.
 - The browser UI can talk to real Moshi by clicking `Test Speaker`, then `Connect`, then `Start Mic`.
-- Browser debug audio lines show raw decoded Moshi `peak` and gain-adjusted `out` levels; chunks near `0.000` are silence from Moshi, not a transport failure.
+- Browser debug audio lines show raw decoded Moshi `peak` and output `out` levels; chunks near `0.000` are silence from Moshi, not a transport failure.
 
 ## Known Decisions
 - Hardware: Apple Mac M4 with 16 GB unified memory.
