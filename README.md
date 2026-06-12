@@ -6,7 +6,7 @@ This project is a real-time voice assistant demo with Moshi handling live conver
 
 ## Current Phase
 
-Phase 0 - Model Decisions + Project Scaffold.
+Phase 2 - Transcripts + Router.
 
 ## Development Defaults
 
@@ -37,6 +37,26 @@ java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar
 ```
 
 Then open `http://localhost:8080` and use **Connect** followed by **Send Test Frame**.
+
+To talk through real local Moshi from this project, start Moshi first:
+
+```sh
+/Users/riteshrajput/.venvs/moshi-mlx/bin/python -m moshi_mlx.local_web \
+  -q 4 --host 127.0.0.1 --port 8998 --no-browser
+```
+
+Then start the gateway in real Moshi mode:
+
+```sh
+MOSHI_MODE=real \
+MOSHI_WS_URL=ws://127.0.0.1:8998/api/chat \
+STT_MODE=stub \
+LLM_MODE=stub \
+TTS_MODE=stub \
+java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar
+```
+
+Open `http://localhost:8080`, click **Connect**, then **Start Mic**. The gateway keeps the browser side as raw 24 kHz PCM and bridges to Moshi's Ogg/Opus protocol internally.
 
 ## Phase 2 Checks
 

@@ -20,6 +20,8 @@ public class RealMoshiClient implements MoshiClient {
     private final ModeProperties properties;
     private final StandardWebSocketClient webSocketClient = new StandardWebSocketClient();
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    private final Map<String, OggOpusEncoder> encoders = new ConcurrentHashMap<>();
+    private final Map<String, OggOpusDecoder> decoders = new ConcurrentHashMap<>();
 
     public RealMoshiClient(ModeProperties properties) {
         this.properties = properties;
@@ -31,6 +33,8 @@ public class RealMoshiClient implements MoshiClient {
             @Override
             public void afterConnectionEstablished(WebSocketSession session) {
                 sessions.put(sessionId, session);
+                encoders.put(sessionId, new OggOpusEncoder());
+                decoders.put(sessionId, new OggOpusDecoder());
             }
 
             @Override
@@ -41,7 +45,15 @@ public class RealMoshiClient implements MoshiClient {
                 }
                 switch (decoded.type()) {
                     case HANDSHAKE -> callbacks.onOpen();
-                    case AUDIO -> callbacks.onAudio(decoded.payload());
+                    case AUDIO -> {
+                        OggOpusDecoder decoder = decoders.get(sessionId);
+                        if (decoder == null) {
+                            return;
+                        }
+                        for (byte[] pcm : decoder.decode(decoded.payload())) {
+                            callbacks.onAudio(pcm);
+                        }
+                    }
                     case TEXT, COLORED_TEXT -> callbacks.onText(new String(decoded.payload(), StandardCharsets.UTF_8));
                     case ERROR -> callbacks.onError(new IllegalStateException(new String(decoded.payload(), StandardCharsets.UTF_8)));
                     default -> {
@@ -51,7 +63,7 @@ public class RealMoshiClient implements MoshiClient {
 
             @Override
             public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-                sessions.remove(sessionId);
+                removeSession(sessionId);
                 callbacks.onClose();
             }
 
@@ -68,16 +80,25 @@ public class RealMoshiClient implements MoshiClient {
         if (session == null || !session.isOpen()) {
             return;
         }
+        OggOpusEncoder encoder = encoders.get(sessionId);
+        if (encoder == null) {
+            return;
+        }
         try {
-            session.sendMessage(new BinaryMessage(MoshiProtocol.audio(pcm)));
-        } catch (IOException e) {
+            for (byte[] oggPage : encoder.encodePcm(pcm)) {
+                synchronized (session) {
+                    session.sendMessage(new BinaryMessage(MoshiProtocol.audio(oggPage)));
+                }
+            }
+        } catch (IOException | IllegalStateException e) {
             throw new IllegalStateException("failed to send audio to Moshi", e);
         }
     }
 
     @Override
     public void disconnect(String sessionId) {
-        WebSocketSession session = sessions.remove(sessionId);
+        WebSocketSession session = sessions.get(sessionId);
+        removeSession(sessionId);
         if (session == null) {
             return;
         }
@@ -85,6 +106,12 @@ public class RealMoshiClient implements MoshiClient {
             session.close();
         } catch (IOException ignored) {
         }
+    }
+
+    private void removeSession(String sessionId) {
+        sessions.remove(sessionId);
+        encoders.remove(sessionId);
+        decoders.remove(sessionId);
     }
 
     private byte[] bytes(java.nio.ByteBuffer buffer) {

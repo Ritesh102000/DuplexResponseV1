@@ -34,6 +34,9 @@
 - [x] Session lifecycle covers IDLE to LISTENING for Phase 1.
 - [x] Integration test asserts byte-equivalent PCM pass-through in stub mode.
 - [x] Reconnect test asserts session reset after stub drop.
+- [x] `MOSHI_MODE=real` bridges browser raw PCM to Moshi Ogg/Opus and decodes Moshi Ogg/Opus back to raw PCM.
+- [x] Browser UI has AudioWorklet microphone capture for real Moshi testing through the project gateway.
+- [x] Local real-Moshi smoke test through `/ws/voice` returns decoded PCM.
 - [x] `mvn verify` passes.
 - [x] Human real-Moshi checkpoint is accepted by request to start Phase 2.
 

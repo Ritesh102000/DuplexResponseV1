@@ -137,7 +137,7 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
             synchronized (session) {
                 session.sendMessage(new BinaryMessage(pcm));
             }
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             controlMessageSender.error(session, "AUDIO_SEND_FAILED", e.getMessage());
             closeQuietly(session);
         }

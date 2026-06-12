@@ -75,8 +75,7 @@ public class ControlMessageSender {
             synchronized (session) {
                 session.sendMessage(new TextMessage(toJson(payload)));
             }
-        } catch (IOException e) {
-            throw new IllegalStateException("failed to send control message", e);
+        } catch (IOException | IllegalStateException ignored) {
         }
     }
 

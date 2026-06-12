@@ -55,6 +55,8 @@ That is `MT=0`, protocol version `0`, model version `0`.
 
 The web client marks the socket connected when it receives a decoded handshake.
 
+The local `moshi_mlx.local_web` server used on this Mac sends the compact binary handshake `00`. The gateway accepts both this one-byte handshake and the longer server-style zero handshake.
+
 ## Audio
 
 Moshi audio frames are `MT=1` followed by Ogg/Opus bytes:
@@ -68,6 +70,9 @@ The Python client wraps bytes emitted by `sphn.OpusStreamWriter(24000)` with `0x
 The Rust server uses an Ogg/Opus encoder/decoder at 24 kHz. It sends an `Audio` message containing the Opus header data before streaming encoded pages.
 
 The gateway browser contract remains different: browser-to-gateway and gateway-to-browser use raw 24 kHz, signed 16-bit, mono PCM chunks. Therefore the real Moshi client is responsible for PCM <-> Ogg/Opus conversion when `MOSHI_MODE=real`.
+
+Implementation note:
+`RealMoshiClient` now performs that conversion inside the gateway. Browser PCM is split into 20 ms frames, encoded with Concentus Opus, wrapped as Ogg pages, and sent as Moshi `Audio` payloads. Moshi `Audio` payloads are parsed as Ogg pages, decoded from Opus, and forwarded to the browser as raw PCM.
 
 ## Text
 
@@ -84,4 +89,3 @@ Text messages represent Moshi's streamed text/inner monologue and are forwarded 
 CI and local tests use `MOSHI_MODE=stub`. The Java `StubMoshiClient` does not pretend to be real Moshi; it is a gateway test double that echoes raw browser PCM back to the browser so the browser-gateway-Moshi path can be tested without Opus, GPU, or network model access.
 
 The separate `stubs/fake-moshi/` Python server mirrors the documented Moshi message envelope for later real-client tests: it sends the 9-byte handshake, echoes `Audio` payloads as `Audio`, and can emit `Text`.
-
