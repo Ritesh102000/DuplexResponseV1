@@ -44,6 +44,7 @@ Phase 2 - Transcripts + router.
 - Added AudioWorklet microphone capture to the static browser UI with 24 kHz/80 ms PCM packetization.
 - Added Ogg/Opus codec unit tests and fixed WebSocket send/close race handling.
 - Ran a local real-Moshi gateway smoke test through `/ws/voice` and received decoded PCM from real Moshi.
+- Improved browser response playback with audio-context unlock, sequential PCM scheduling, a local speaker test, debug peak logging, and 6x clipped output gain after a spoken-phrase probe showed Moshi raw PCM peaks around 0.039.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
@@ -54,7 +55,8 @@ Phase 2 - Transcripts + router.
 - The browser can send stub utterances as `{"type":"transcript.user","text":"..."}` over `/ws/voice` for local Phase 2 testing.
 - Local real Moshi is installed at `/Users/riteshrajput/.venvs/moshi-mlx/bin/python` and can be started with `python -m moshi_mlx.local_web -q 4 --host 127.0.0.1 --port 8998 --no-browser`.
 - In `MOSHI_MODE=real`, the gateway now keeps the browser contract as raw 24 kHz PCM and bridges to Moshi's Ogg/Opus WebSocket payloads internally.
-- The browser UI can talk to real Moshi by clicking `Connect` then `Start Mic`.
+- The browser UI can talk to real Moshi by clicking `Test Speaker`, then `Connect`, then `Start Mic`.
+- Browser debug audio lines show raw decoded Moshi `peak` and gain-adjusted `out` levels; chunks near `0.000` are silence from Moshi, not a transport failure.
 
 ## Known Decisions
 - Hardware: Apple Mac M4 with 16 GB unified memory.
@@ -71,7 +73,7 @@ Phase 2 - Transcripts + router.
 - Real hosted LLM router eval has not been run yet.
 
 ## Known Issues
-- `MOSHI_MODE=real` now carries audio through the Java PCM/Ogg-Opus bridge and browser mic capture exists, but conversational audio quality and latency still need a human mic/speaker checkpoint with local Moshi.
+- `MOSHI_MODE=real` now carries audio through the Java PCM/Ogg-Opus bridge and browser mic capture exists. A spoken-phrase probe returned Moshi text and decoded PCM, but conversational quality and latency still need a human mic/speaker checkpoint with local Moshi.
 - `STT_MODE=real` is scaffolded but real streaming transcription is not implemented beyond sidecar boundaries.
 - `ROUTER_MODE=real` has an OpenAI-compatible client and fallback path, but it has not been exercised with a real API key/model in this phase.
 - Phase 2 ACT replies are canned text control messages; TTS audio for replies starts in Phase 3.

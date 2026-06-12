@@ -2,6 +2,7 @@ const connectButton = document.querySelector("#connect");
 const disconnectButton = document.querySelector("#disconnect");
 const startMicButton = document.querySelector("#startMic");
 const stopMicButton = document.querySelector("#stopMic");
+const speakerTestButton = document.querySelector("#speakerTest");
 const toneButton = document.querySelector("#tone");
 const sendUtteranceButton = document.querySelector("#sendUtterance");
 const utteranceInput = document.querySelector("#utterance");
@@ -18,9 +19,12 @@ let micRunning = false;
 let captureBuffer = [];
 let resampleBuffer = new Float32Array(0);
 let resamplePosition = 0;
+let outputPlaybackTime = 0;
+let outputSources = new Set();
 
 const TARGET_SAMPLE_RATE = 24000;
 const BROWSER_FRAME_SAMPLES = Math.floor(TARGET_SAMPLE_RATE * 0.08);
+const OUTPUT_GAIN = 6;
 
 function log(line) {
   debugEl.textContent += `${new Date().toISOString()} ${line}\n`;
@@ -37,6 +41,14 @@ function setConnected(connected) {
   statusEl.textContent = connected ? "Connected" : "Disconnected";
 }
 
+async function unlockAudio() {
+  audioContext ||= new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
+  if (audioContext.state === "suspended") {
+    await audioContext.resume();
+  }
+  return audioContext;
+}
+
 function pcmSineFrame() {
   const sampleRate = TARGET_SAMPLE_RATE;
   const samples = BROWSER_FRAME_SAMPLES;
@@ -49,21 +61,68 @@ function pcmSineFrame() {
   return bytes;
 }
 
-function playPcm(arrayBuffer) {
-  audioContext ||= new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
-  const pcm = new Int16Array(arrayBuffer);
+async function playPcm(arrayBuffer) {
+  const context = await unlockAudio();
+  const pcm = pcmBytesToInt16(arrayBuffer);
   const buffer = audioContext.createBuffer(1, pcm.length, TARGET_SAMPLE_RATE);
   const channel = buffer.getChannelData(0);
+  let inputPeak = 0;
+  let outputPeak = 0;
   for (let i = 0; i < pcm.length; i += 1) {
-    channel[i] = pcm[i] / 32768;
+    const value = pcm[i] / 32768;
+    const boosted = Math.max(-1, Math.min(1, value * OUTPUT_GAIN));
+    inputPeak = Math.max(inputPeak, Math.abs(value));
+    outputPeak = Math.max(outputPeak, Math.abs(boosted));
+    channel[i] = boosted;
   }
   const source = audioContext.createBufferSource();
   source.buffer = buffer;
   source.connect(audioContext.destination);
+  const startAt = Math.max(context.currentTime + 0.03, outputPlaybackTime);
+  outputPlaybackTime = startAt + buffer.duration;
+  outputSources.add(source);
+  source.addEventListener("ended", () => {
+    outputSources.delete(source);
+    if (outputSources.size === 0 && outputPlaybackTime < context.currentTime) {
+      outputPlaybackTime = 0;
+    }
+  });
+  source.start(startAt);
+  return {
+    samples: pcm.length,
+    inputPeak,
+    outputPeak,
+    queuedMs: Math.max(0, Math.round((startAt - context.currentTime) * 1000)),
+  };
+}
+
+function pcmBytesToInt16(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+  const pcm = new Int16Array(Math.floor(view.byteLength / 2));
+  for (let i = 0; i < pcm.length; i += 1) {
+    pcm[i] = view.getInt16(i * 2, true);
+  }
+  return pcm;
+}
+
+async function playSpeakerTest() {
+  const context = await unlockAudio();
+  const samples = Math.floor(TARGET_SAMPLE_RATE * 0.35);
+  const buffer = context.createBuffer(1, samples, TARGET_SAMPLE_RATE);
+  const channel = buffer.getChannelData(0);
+  for (let i = 0; i < samples; i += 1) {
+    const fade = Math.min(i / 400, (samples - i) / 400, 1);
+    channel[i] = Math.sin((i / TARGET_SAMPLE_RATE) * 660 * Math.PI * 2) * 0.18 * Math.max(0, fade);
+  }
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.connect(context.destination);
   source.start();
 }
 
 connectButton.addEventListener("click", () => {
+  unlockAudio().catch((error) => log(`audio unlock error ${error.message}`));
+  resetOutputQueue();
   const sessionId = crypto.randomUUID();
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   socket = new WebSocket(`${protocol}://${window.location.host}/ws/voice?sessionId=${sessionId}`);
@@ -75,16 +134,21 @@ connectButton.addEventListener("click", () => {
   });
   socket.addEventListener("close", () => {
     stopMic();
+    resetOutputQueue();
     setConnected(false);
     log("ws close");
   });
-  socket.addEventListener("message", (event) => {
+  socket.addEventListener("message", async (event) => {
     if (typeof event.data === "string") {
       log(event.data);
       return;
     }
-    log(`audio ${event.data.byteLength} bytes`);
-    playPcm(event.data);
+    try {
+      const stats = await playPcm(event.data);
+      log(`audio ${event.data.byteLength} bytes samples=${stats.samples} peak=${stats.inputPeak.toFixed(3)} out=${stats.outputPeak.toFixed(3)} queued=${stats.queuedMs}ms`);
+    } catch (error) {
+      log(`audio playback error ${error.message}`);
+    }
   });
 });
 
@@ -98,8 +162,7 @@ startMicButton.addEventListener("click", async () => {
     return;
   }
   try {
-    audioContext ||= new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
-    await audioContext.resume();
+    await unlockAudio();
     await audioContext.audioWorklet.addModule("/mic-capture-worklet.js");
     micStream = await navigator.mediaDevices.getUserMedia({
       audio: {
@@ -133,6 +196,12 @@ startMicButton.addEventListener("click", async () => {
 
 stopMicButton.addEventListener("click", () => {
   stopMic();
+});
+
+speakerTestButton.addEventListener("click", () => {
+  playSpeakerTest()
+    .then(() => log("speaker test played"))
+    .catch((error) => log(`speaker test error ${error.message}`));
 });
 
 toneButton.addEventListener("click", () => {
@@ -219,4 +288,16 @@ function stopMic() {
   resamplePosition = 0;
   setConnected(socket?.readyState === WebSocket.OPEN);
   log("mic stopped");
+}
+
+function resetOutputQueue() {
+  outputSources.forEach((source) => {
+    try {
+      source.stop();
+    } catch (error) {
+      // Source may already have ended.
+    }
+  });
+  outputSources.clear();
+  outputPlaybackTime = 0;
 }
