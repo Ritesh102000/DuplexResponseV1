@@ -1,0 +1,18 @@
+services:
+  gateway:
+    build:
+      context: ./gateway
+    environment:
+      MOSHI_MODE: stub
+      STT_MODE: stub
+      TTS_MODE: stub
+      LLM_MODE: stub
+      EVENT_LOG_PATH: /data/events.jsonl
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+

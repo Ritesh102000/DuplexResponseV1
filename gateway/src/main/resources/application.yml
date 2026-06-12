@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: voice-two-brains-gateway
+  threads:
+    virtual:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+voice:
+  moshi-mode: ${MOSHI_MODE:stub}
+  stt-mode: ${STT_MODE:stub}
+  tts-mode: ${TTS_MODE:stub}
+  llm-mode: ${LLM_MODE:stub}
+  ask-timeout-ms: ${ASK_TIMEOUT_MS:20000}
+  stale-turn-limit: ${STALE_TURN_LIMIT:2}
+  event-log-path: ${EVENT_LOG_PATH:./data/events.jsonl}
+

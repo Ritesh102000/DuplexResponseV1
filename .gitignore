@@ -1,0 +1,13 @@
+.DS_Store
+
+# Build outputs
+target/
+gateway/target/
+
+# Local runtime data
+data/
+*.log
+
+# Local secrets
+.env
+

@@ -1,0 +1,140 @@
+{"id":"chat-001","text":"hey how is your day going","label":"CHAT","ambiguous":false}
+{"id":"chat-002","text":"that sounds pretty cool","label":"CHAT","ambiguous":false}
+{"id":"chat-003","text":"i just got back from lunch","label":"CHAT","ambiguous":false}
+{"id":"chat-004","text":"can you believe how expensive flights are","label":"CHAT","ambiguous":true}
+{"id":"chat-005","text":"i was thinking about going to goa sometime","label":"CHAT","ambiguous":true}
+{"id":"chat-006","text":"the weather has been strange lately","label":"CHAT","ambiguous":false}
+{"id":"chat-007","text":"my meeting ran way longer than expected","label":"CHAT","ambiguous":false}
+{"id":"chat-008","text":"i like how calm your voice sounds","label":"CHAT","ambiguous":false}
+{"id":"chat-009","text":"that movie was better than i expected","label":"CHAT","ambiguous":false}
+{"id":"chat-010","text":"i wonder why coffee tastes better at night","label":"CHAT","ambiguous":true}
+{"id":"chat-011","text":"this keyboard feels nice to type on","label":"CHAT","ambiguous":false}
+{"id":"chat-012","text":"i am not sure what i want to do today","label":"CHAT","ambiguous":false}
+{"id":"chat-013","text":"you know i have been thinking about productivity","label":"CHAT","ambiguous":true}
+{"id":"chat-014","text":"that is such a weird coincidence","label":"CHAT","ambiguous":false}
+{"id":"chat-015","text":"i really need a vacation soon","label":"CHAT","ambiguous":true}
+{"id":"chat-016","text":"the traffic near my office is always bad","label":"CHAT","ambiguous":false}
+{"id":"chat-017","text":"i feel like learning spring boot could be fun","label":"CHAT","ambiguous":true}
+{"id":"chat-018","text":"my friend said that ai assistants are improving fast","label":"CHAT","ambiguous":false}
+{"id":"chat-019","text":"this song reminds me of college","label":"CHAT","ambiguous":false}
+{"id":"chat-020","text":"i probably drink too much chai","label":"CHAT","ambiguous":false}
+{"id":"chat-021","text":"sometimes simple demos are the most impressive","label":"CHAT","ambiguous":true}
+{"id":"chat-022","text":"i was reading about electric cars yesterday","label":"CHAT","ambiguous":true}
+{"id":"chat-023","text":"that joke was terrible but funny","label":"CHAT","ambiguous":false}
+{"id":"chat-024","text":"i think my laptop is getting warm","label":"CHAT","ambiguous":false}
+{"id":"chat-025","text":"the new cafe downstairs looks crowded","label":"CHAT","ambiguous":false}
+{"id":"chat-026","text":"i am curious about how people build demos like this","label":"CHAT","ambiguous":true}
+{"id":"chat-027","text":"my weekend was mostly sleep and errands","label":"CHAT","ambiguous":false}
+{"id":"chat-028","text":"i always forget where i put my charger","label":"CHAT","ambiguous":false}
+{"id":"chat-029","text":"that answer felt natural","label":"CHAT","ambiguous":false}
+{"id":"chat-030","text":"i like the idea of a two brain assistant","label":"CHAT","ambiguous":false}
+{"id":"chat-031","text":"maybe we should keep the demo short","label":"CHAT","ambiguous":true}
+{"id":"chat-032","text":"i was surprised by how fast that response came","label":"CHAT","ambiguous":false}
+{"id":"chat-033","text":"the office is quieter than usual today","label":"CHAT","ambiguous":false}
+{"id":"chat-034","text":"i need to get better at explaining ideas","label":"CHAT","ambiguous":false}
+{"id":"chat-035","text":"i thought the capital was sydney for years","label":"CHAT","ambiguous":true}
+{"id":"chat-036","text":"people ask assistants the strangest things","label":"CHAT","ambiguous":false}
+{"id":"chat-037","text":"i have been comparing phone cameras lately","label":"CHAT","ambiguous":true}
+{"id":"chat-038","text":"that makes sense to me","label":"CHAT","ambiguous":false}
+{"id":"chat-039","text":"i am still waking up","label":"CHAT","ambiguous":false}
+{"id":"chat-040","text":"it feels like monday even though it is not","label":"CHAT","ambiguous":false}
+{"id":"chat-041","text":"i wonder if this will impress people","label":"CHAT","ambiguous":true}
+{"id":"chat-042","text":"my headphones are finally working again","label":"CHAT","ambiguous":false}
+{"id":"chat-043","text":"i was talking to my cousin about jobs","label":"CHAT","ambiguous":true}
+{"id":"chat-044","text":"that pause actually felt human","label":"CHAT","ambiguous":false}
+{"id":"chat-045","text":"i am trying to keep this simple","label":"CHAT","ambiguous":false}
+{"id":"chat-046","text":"the demo story is starting to make sense","label":"CHAT","ambiguous":false}
+{"id":"chat-047","text":"i almost ordered another monitor yesterday","label":"CHAT","ambiguous":true}
+{"id":"chat-048","text":"this room echoes more than i expected","label":"CHAT","ambiguous":false}
+{"id":"chat-049","text":"i might need a better microphone later","label":"CHAT","ambiguous":true}
+{"id":"chat-050","text":"okay that was smooth","label":"CHAT","ambiguous":false}
+{"id":"ask-001","text":"what is the capital of australia","label":"ASK","ambiguous":false}
+{"id":"ask-002","text":"how expensive are flights to goa next month","label":"ASK","ambiguous":true}
+{"id":"ask-003","text":"explain the difference between tcp and udp in two sentences","label":"ASK","ambiguous":false}
+{"id":"ask-004","text":"who is the current prime minister of india","label":"ASK","ambiguous":false}
+{"id":"ask-005","text":"what does spring boot actuator do","label":"ASK","ambiguous":false}
+{"id":"ask-006","text":"can you summarize why latency matters in voice assistants","label":"ASK","ambiguous":false}
+{"id":"ask-007","text":"how much memory does a 7 billion parameter model usually need","label":"ASK","ambiguous":false}
+{"id":"ask-008","text":"what is the best way to reduce microphone echo","label":"ASK","ambiguous":false}
+{"id":"ask-009","text":"why do apple silicon models use mlx","label":"ASK","ambiguous":false}
+{"id":"ask-010","text":"what is a websocket handshake","label":"ASK","ambiguous":false}
+{"id":"ask-011","text":"could you compare piper and elevenlabs for this demo","label":"ASK","ambiguous":true}
+{"id":"ask-012","text":"what are three risks in this architecture","label":"ASK","ambiguous":false}
+{"id":"ask-013","text":"how do i calculate perceived latency from the event log","label":"ASK","ambiguous":false}
+{"id":"ask-014","text":"what does stale answer mean here","label":"ASK","ambiguous":false}
+{"id":"ask-015","text":"why would moshi need suppression during an ask","label":"ASK","ambiguous":false}
+{"id":"ask-016","text":"what is the difference between vad and stt","label":"ASK","ambiguous":false}
+{"id":"ask-017","text":"can you give me a short definition of correlation id","label":"ASK","ambiguous":false}
+{"id":"ask-018","text":"how many milliseconds are in an 80 millisecond pcm chunk at 24 khz","label":"ASK","ambiguous":false}
+{"id":"ask-019","text":"what is the formula for audio samples per frame","label":"ASK","ambiguous":false}
+{"id":"ask-020","text":"is caffeine cache persistent after restart","label":"ASK","ambiguous":false}
+{"id":"ask-021","text":"what should i say in the demo intro","label":"ASK","ambiguous":true}
+{"id":"ask-022","text":"which chart would show true latency versus perceived latency clearly","label":"ASK","ambiguous":false}
+{"id":"ask-023","text":"how do virtual threads help this gateway","label":"ASK","ambiguous":false}
+{"id":"ask-024","text":"what happens if the llm times out","label":"ASK","ambiguous":false}
+{"id":"ask-025","text":"what is the simplest way to test barge in","label":"ASK","ambiguous":false}
+{"id":"ask-026","text":"how should i explain system one and system two to a judge","label":"ASK","ambiguous":true}
+{"id":"ask-027","text":"what does opus encoding do for voice streaming","label":"ASK","ambiguous":false}
+{"id":"ask-028","text":"can you list the main components of the gateway","label":"ASK","ambiguous":false}
+{"id":"ask-029","text":"why is the router separate from the answer model","label":"ASK","ambiguous":false}
+{"id":"ask-030","text":"how would you detect a flow break in a conversation","label":"ASK","ambiguous":false}
+{"id":"ask-031","text":"what is the cost of one hundred calls to this model","label":"ASK","ambiguous":true}
+{"id":"ask-032","text":"what does openai compatible api mean","label":"ASK","ambiguous":false}
+{"id":"ask-033","text":"how do i run maven tests for this repo","label":"ASK","ambiguous":false}
+{"id":"ask-034","text":"what should be inside the event jsonl line","label":"ASK","ambiguous":false}
+{"id":"ask-035","text":"why should ci avoid real moshi","label":"ASK","ambiguous":false}
+{"id":"ask-036","text":"what is a safe timeout for the router","label":"ASK","ambiguous":false}
+{"id":"ask-037","text":"can you explain ducking in audio mixing","label":"ASK","ambiguous":false}
+{"id":"ask-038","text":"how does a single threaded audio executor preserve order","label":"ASK","ambiguous":false}
+{"id":"ask-039","text":"what is the difference between chat and ask in this router","label":"ASK","ambiguous":true}
+{"id":"ask-040","text":"how should we choose ambiguous router examples","label":"ASK","ambiguous":false}
+{"id":"ask-041","text":"what is the command to install moshi mlx locally","label":"ASK","ambiguous":false}
+{"id":"ask-042","text":"how can i tell whether a response is a continuation","label":"ASK","ambiguous":false}
+{"id":"ask-043","text":"why is there only one ask in flight per session","label":"ASK","ambiguous":false}
+{"id":"ask-044","text":"what is prometheus used for in this project","label":"ASK","ambiguous":false}
+{"id":"ask-045","text":"what should the readme hard problems section include","label":"ASK","ambiguous":false}
+{"id":"ask-046","text":"how does the stale turn limit work","label":"ASK","ambiguous":false}
+{"id":"ask-047","text":"can you make the answer sound more casual","label":"ASK","ambiguous":true}
+{"id":"ask-048","text":"what are common websocket failure cases","label":"ASK","ambiguous":false}
+{"id":"ask-049","text":"how do i know if a spoken answer is too long","label":"ASK","ambiguous":false}
+{"id":"ask-050","text":"what is the target accuracy for chat versus ask routing","label":"ASK","ambiguous":false}
+{"id":"act-001","text":"send a message to rahul that i am running late","label":"ACT","ambiguous":false}
+{"id":"act-002","text":"book a cab to the airport for 6 pm","label":"ACT","ambiguous":false}
+{"id":"act-003","text":"remind me to call mom tonight","label":"ACT","ambiguous":false}
+{"id":"act-004","text":"add milk and bread to my shopping list","label":"ACT","ambiguous":false}
+{"id":"act-005","text":"schedule a meeting with ananya tomorrow morning","label":"ACT","ambiguous":false}
+{"id":"act-006","text":"email the demo notes to my team","label":"ACT","ambiguous":false}
+{"id":"act-007","text":"turn on do not disturb for one hour","label":"ACT","ambiguous":false}
+{"id":"act-008","text":"set a timer for twenty minutes","label":"ACT","ambiguous":false}
+{"id":"act-009","text":"create a calendar event for the presentation","label":"ACT","ambiguous":false}
+{"id":"act-010","text":"order my usual coffee","label":"ACT","ambiguous":false}
+{"id":"act-011","text":"please save this transcript","label":"ACT","ambiguous":false}
+{"id":"act-012","text":"open the github pull request page","label":"ACT","ambiguous":false}
+{"id":"act-013","text":"mute my microphone","label":"ACT","ambiguous":false}
+{"id":"act-014","text":"start recording the demo now","label":"ACT","ambiguous":false}
+{"id":"act-015","text":"share this chart with ritesh","label":"ACT","ambiguous":false}
+{"id":"act-016","text":"make a note that suppression worked","label":"ACT","ambiguous":false}
+{"id":"act-017","text":"call the restaurant and ask for a table","label":"ACT","ambiguous":true}
+{"id":"act-018","text":"cancel my reminder for tomorrow","label":"ACT","ambiguous":false}
+{"id":"act-019","text":"move my noon meeting to three","label":"ACT","ambiguous":false}
+{"id":"act-020","text":"download the latest event log","label":"ACT","ambiguous":false}
+{"id":"act-021","text":"create a task to test barge in later","label":"ACT","ambiguous":false}
+{"id":"act-022","text":"text my brother the address","label":"ACT","ambiguous":false}
+{"id":"act-023","text":"turn the volume down a little","label":"ACT","ambiguous":false}
+{"id":"act-024","text":"pause the music","label":"ACT","ambiguous":false}
+{"id":"act-025","text":"start the stopwatch when i say go","label":"ACT","ambiguous":false}
+{"id":"act-026","text":"create a github issue for the tts voice mismatch","label":"ACT","ambiguous":false}
+{"id":"act-027","text":"send me the latency chart after the run","label":"ACT","ambiguous":true}
+{"id":"act-028","text":"add a follow up for moshi protocol discovery","label":"ACT","ambiguous":false}
+{"id":"act-029","text":"post the summary in slack","label":"ACT","ambiguous":false}
+{"id":"act-030","text":"switch the demo to stub mode","label":"ACT","ambiguous":false}
+{"id":"act-031","text":"save the current config as a preset","label":"ACT","ambiguous":false}
+{"id":"act-032","text":"restart the gateway service","label":"ACT","ambiguous":false}
+{"id":"act-033","text":"enable captions for the demo","label":"ACT","ambiguous":false}
+{"id":"act-034","text":"copy the metrics table into the readme","label":"ACT","ambiguous":false}
+{"id":"act-035","text":"raise the session call cap to one hundred","label":"ACT","ambiguous":true}
+{"id":"act-036","text":"delete the stale test recording","label":"ACT","ambiguous":false}
+{"id":"act-037","text":"create a backup of the work log","label":"ACT","ambiguous":false}
+{"id":"act-038","text":"invite me to the demo review","label":"ACT","ambiguous":false}
+{"id":"act-039","text":"mark phase zero as complete after tests pass","label":"ACT","ambiguous":false}
+{"id":"act-040","text":"send the project context to the next agent","label":"ACT","ambiguous":false}

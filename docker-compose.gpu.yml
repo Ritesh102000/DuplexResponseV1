@@ -1,0 +1,8 @@
+services:
+  moshi:
+    image: python:3.12-slim
+    profiles: ["gpu"]
+    command: ["python", "-m", "moshi.server"]
+    ports:
+      - "8998:8998"
+
