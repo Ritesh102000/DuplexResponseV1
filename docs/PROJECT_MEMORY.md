@@ -57,6 +57,7 @@ Phase 3 - Ask flow end-to-end.
 - Added Phase 3 tests for state transitions, exact ASK event sequence, injected TTS audio, Moshi suppression during injection, stale drop, and supersede.
 - Ran Phase 3 validation successfully.
 - Updated `tts-service` after browser testing so macOS local runs use `say` + `afconvert` for spoken WAV output; the deterministic tone remains the fallback for stub/CI environments.
+- Rebuilt the TTS virtualenv with `/opt/homebrew/bin/python3.12` after Python 3.14 failed to install pinned `pydantic-core`; local sidecar docs now use Python 3.12 explicitly.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
@@ -94,6 +95,7 @@ Phase 3 - Ask flow end-to-end.
 - `MOSHI_MODE=real` now carries audio through the Java PCM/Ogg-Opus bridge and browser mic capture exists. A spoken-phrase probe returned Moshi text and decoded PCM, but conversational quality and latency still need a human mic/speaker checkpoint with local Moshi.
 - `STT_MODE=real` is scaffolded but real streaming transcription is not implemented beyond sidecar boundaries.
 - `TTS_MODE=real` has a gateway-side client and FastAPI sidecar contract. On macOS it can speak through `say` + `afconvert`; on systems without those tools it falls back to deterministic tone audio until a concrete Piper voice/model path is installed.
+- FastAPI sidecar virtualenvs should be created with `/opt/homebrew/bin/python3.12` on this Mac. The default `python3` is 3.14 and can fail against pinned Pydantic/PyO3 wheels.
 - `ROUTER_MODE=real` has an OpenAI-compatible client and fallback path, but it has not been exercised with a real API key/model in this phase.
 - Phase 3 injection suppresses Moshi audio during injected TTS. Smooth fade/duck polish and barge-in cancellation are Phase 4 work.
 
@@ -112,6 +114,6 @@ Human runs the Phase 3 checkpoint with real Moshi plus the gateway: ask a factua
 - `python3 stubs/fake-moshi/fake_moshi.py --port 8998`
 - `/Users/riteshrajput/.venvs/moshi-mlx/bin/python -m moshi_mlx.local_web -q 4 --host 127.0.0.1 --port 8998 --no-browser`
 - `MOSHI_MODE=real MOSHI_WS_URL=ws://127.0.0.1:8998/api/chat STT_MODE=stub LLM_MODE=stub TTS_MODE=stub java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar`
-- `cd stt-service && uvicorn app.main:app --host 0.0.0.0 --port 8081`
-- `cd tts-service && uvicorn app.main:app --host 0.0.0.0 --port 8082`
+- `cd stt-service && /opt/homebrew/bin/python3.12 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8081`
+- `cd tts-service && /opt/homebrew/bin/python3.12 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8082`
 - `git status --short`

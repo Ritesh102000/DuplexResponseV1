@@ -11,3 +11,6 @@ data/
 # Local secrets
 .env
 
+# Local Python environments
+.venv/
+**/.venv/

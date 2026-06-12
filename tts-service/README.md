@@ -7,11 +7,15 @@ plays a deterministic tone. To hear spoken responses locally on macOS, run this
 sidecar and start the gateway with `TTS_MODE=real`.
 
 ```sh
-python3 -m venv .venv
+/opt/homebrew/bin/python3.12 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8082
 ```
+
+Use Python 3.12 for this venv on the Mac. The project machine's default
+`python3` may be Python 3.14, which is too new for the pinned Pydantic build
+used by this service.
 
 Optional macOS voice selection:
 

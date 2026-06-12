@@ -83,7 +83,7 @@ The STT sidecar scaffold can be started separately:
 
 ```sh
 cd stt-service
-python3 -m venv .venv
+/opt/homebrew/bin/python3.12 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8081
@@ -114,7 +114,7 @@ The TTS sidecar contract can be started separately:
 
 ```sh
 cd tts-service
-python3 -m venv .venv
+/opt/homebrew/bin/python3.12 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8082

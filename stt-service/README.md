@@ -7,7 +7,7 @@ exposes a lightweight health endpoint and a stub utterance endpoint while the
 real Silero VAD + faster-whisper runtime remains behind the sidecar boundary.
 
 ```sh
-python3 -m venv .venv
+/opt/homebrew/bin/python3.12 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8081
@@ -18,4 +18,3 @@ Endpoints:
 - `GET /health`
 - `POST /stub/utterance` with `{"text":"what is the capital of australia"}`
 - `POST /transcribe` placeholder for real audio transcription
-
