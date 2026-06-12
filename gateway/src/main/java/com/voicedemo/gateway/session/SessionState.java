@@ -16,12 +16,7 @@ public class SessionState {
         return status;
     }
 
-    public synchronized void markListening() {
-        status = SessionStatus.LISTENING;
-    }
-
-    public synchronized void markIdle() {
-        status = SessionStatus.IDLE;
+    public synchronized void apply(SessionStateMachine stateMachine, SessionEvent event) {
+        status = stateMachine.transition(status, event);
     }
 }
-

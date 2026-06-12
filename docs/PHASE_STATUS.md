@@ -4,8 +4,8 @@
 |---|---|---|---|---|
 | Phase 0 - Model decisions + scaffold | Complete | Passed: router-label validation, `mvn verify`, packaged gateway boot | Complete | `phase-0: scaffold project and record model decisions` |
 | Phase 1 - Moshi protocol + proxy | Complete | Passed: protocol tests, WebSocket proxy integration tests, reconnect test, `mvn verify` | Complete | `phase-1: document moshi protocol and add ws proxy` |
-| Phase 2 - Transcripts + router | Complete | Passed: router-label validation, router eval, heuristic router tests, transcript buffer tests, WebSocket route-decision integration, `mvn verify` | Pending | `phase-2: add transcripts and router` |
-| Phase 3 - Ask flow end-to-end | Not started | Not run | Pending | Pending |
+| Phase 2 - Transcripts + router | Complete | Passed: router-label validation, router eval, heuristic router tests, transcript buffer tests, WebSocket route-decision integration, `mvn verify` | Complete by human request to start Phase 3 | `phase-2: add transcripts and router` |
+| Phase 3 - Ask flow end-to-end | Complete | Passed: state-machine tests, ASK-flow WebSocket integration, stale-drop test, supersede test, `mvn -pl gateway verify` | Pending | `phase-3: add ask flow job injection` |
 | Phase 4 - Suppression + barge-in | Not started | Not run | Pending | Pending |
 | Phase 5 - Metrics + evaluation | Not started | Not run | Pending | Pending |
 | Phase 6 - Hardening + packaging | Not started | Not run | Pending | Pending |
@@ -58,4 +58,26 @@
 - [x] `python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl` passes.
 - [x] `python3 scripts/router_eval.py docs/eval/router-labels.jsonl` passes.
 - [x] `mvn verify` passes.
-- [ ] Human real-LLM router checkpoint is complete.
+- [x] Human checkpoint accepted by request to start Phase 3.
+
+## Phase 3 Acceptance Checklist
+
+- [x] Full state machine covers `IDLE`, `LISTENING`, `MOSHI_TALKING`, `ASK_IN_FLIGHT`, and `INJECTING`.
+- [x] ASK jobs run asynchronously with correlation IDs.
+- [x] Per-session single-flight/supersede behavior is implemented.
+- [x] Backend answer call uses the transcript window and spoken answer prompt.
+- [x] Harmonizer supports normal and reintroduced answers.
+- [x] Timeout path injects a canned apology.
+- [x] Stale policy drops too-old answers and can reintroduce close stale answers.
+- [x] `TtsClient` has stub and real-sidecar boundary implementations.
+- [x] `tts-service` exists with `/health` and `/speak`.
+- [x] Outbound mixer suppresses Moshi audio during TTS injection.
+- [x] Browser/control messages include ASK `correlationId`, `inject.start`, and `inject.end`.
+- [x] JSONL event log includes ASK/job/injection events.
+- [x] State-machine transition test passes.
+- [x] Integration test asserts `utterance.end -> router.decision -> job.dispatched -> inject.start -> inject.end`.
+- [x] Integration test asserts fake-Moshi audio is absent during injection.
+- [x] Stale-drop test passes.
+- [x] Supersede test passes.
+- [x] `mvn -pl gateway verify` passes.
+- [ ] Human real-Moshi + real-LLM ASK checkpoint is complete.

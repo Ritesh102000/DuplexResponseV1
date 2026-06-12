@@ -6,7 +6,7 @@ This project is a real-time voice assistant demo with Moshi handling live conver
 
 ## Current Phase
 
-Phase 2 - Transcripts + Router.
+Phase 3 - Ask flow end-to-end. Automated stub acceptance is complete; human real-runtime checkpoint is next.
 
 ## Development Defaults
 
@@ -87,4 +87,35 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8081
+```
+
+## Phase 3 Checks
+
+Phase 3 adds the ASK job flow: correlation IDs, per-session supersede, stale-drop policy, delayed backend answer, harmonizer, TTS injection, and outbound mixer suppression while injected audio plays.
+
+```sh
+mvn -pl gateway -Dtest=SessionStateMachineTests,Phase3AskFlowIntegrationTests test
+mvn -pl gateway verify
+python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
+node --check gateway/src/main/resources/static/app.js
+node --check gateway/src/main/resources/static/mic-capture-worklet.js
+```
+
+To try the stub ASK path in the browser:
+
+```sh
+mvn -pl gateway package
+java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar
+```
+
+Open `http://localhost:8080`, click **Test Speaker**, click **Connect**, enter `what is the capital of australia`, then click **Send Utterance**. The debug panel should show `router.decision` with `ASK`, followed by `inject.start`, injected PCM audio, and `inject.end`.
+
+The TTS sidecar contract can be started separately:
+
+```sh
+cd tts-service
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8082
 ```

@@ -20,3 +20,8 @@ services:
       context: ./stt-service
     ports:
       - "8081:8081"
+  tts:
+    build:
+      context: ./tts-service
+    ports:
+      - "8082:8082"

@@ -16,9 +16,11 @@ voice:
   moshi-ws-url: ${MOSHI_WS_URL:ws://localhost:8998/api/chat}
   stt-mode: ${STT_MODE:stub}
   tts-mode: ${TTS_MODE:stub}
+  tts-url: ${TTS_URL:http://localhost:8082}
   llm-mode: ${LLM_MODE:stub}
   llm-base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
   llm-api-key: ${LLM_API_KEY:}
+  llm-model-answer: ${LLM_MODEL_ANSWER:gpt-5.4-mini}
   llm-model-router: ${LLM_MODEL_ROUTER:gpt-5.4-mini}
   ask-timeout-ms: ${ASK_TIMEOUT_MS:20000}
   stale-turn-limit: ${STALE_TURN_LIMIT:2}

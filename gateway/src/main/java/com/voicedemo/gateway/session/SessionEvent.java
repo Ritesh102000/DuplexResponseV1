@@ -1,0 +1,15 @@
+package com.voicedemo.gateway.session;
+
+public enum SessionEvent {
+    CLIENT_AND_MOSHI_OPEN,
+    MOSHI_AUDIO_STARTS,
+    MOSHI_AUDIO_IDLE,
+    ROUTER_ASK,
+    JOB_RESULT_FRESH,
+    JOB_RESULT_STALE_REINTRODUCE,
+    JOB_RESULT_STALE_DROP,
+    JOB_TIMEOUT,
+    TTS_STREAM_ENDS,
+    USER_SPEECH,
+    MOSHI_WS_DROP
+}

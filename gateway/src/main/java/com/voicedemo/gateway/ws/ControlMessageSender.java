@@ -48,12 +48,42 @@ public class ControlMessageSender {
     }
 
     public void routerDecision(WebSocketSession session, String sessionId, String utteranceId, RouteDecision decision) {
+        routerDecision(session, sessionId, utteranceId, decision, null);
+    }
+
+    public void routerDecision(
+            WebSocketSession session,
+            String sessionId,
+            String utteranceId,
+            RouteDecision decision,
+            String correlationId) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "router.decision");
+        payload.put("sessionId", sessionId);
+        payload.put("utteranceId", utteranceId);
+        payload.put("label", decision.label().name());
+        payload.put("confidence", decision.confidence());
+        if (correlationId != null) {
+            payload.put("correlationId", correlationId);
+        }
+        payload.put("ts", Instant.now().toEpochMilli());
+        send(session, payload);
+    }
+
+    public void injectStart(WebSocketSession session, String sessionId, String correlationId) {
         send(session, Map.of(
-                "type", "router.decision",
+                "type", "inject.start",
                 "sessionId", sessionId,
-                "utteranceId", utteranceId,
-                "label", decision.label().name(),
-                "confidence", decision.confidence(),
+                "correlationId", correlationId,
+                "ts", Instant.now().toEpochMilli()
+        ));
+    }
+
+    public void injectEnd(WebSocketSession session, String sessionId, String correlationId) {
+        send(session, Map.of(
+                "type", "inject.end",
+                "sessionId", sessionId,
+                "correlationId", correlationId,
                 "ts", Instant.now().toEpochMilli()
         ));
     }

@@ -1,0 +1,5 @@
+Rewrite the raw answer as a natural continuation in the assistant's voice.
+Keep it to at most two short spoken sentences.
+Do not mention that you are a backend model.
+If REINTRODUCE=true, start with a brief phrase like "About your earlier question,".
+Return only the final spoken text.

@@ -36,11 +36,10 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
                 .bodyValue(body)
                 .retrieve()
                 .bodyToMono(JsonNode.class)
-                .block(Duration.ofSeconds(2));
+                .block(Duration.ofMillis(properties.askTimeoutMs()));
         if (response == null) {
             throw new IllegalStateException("empty LLM response");
         }
         return response.at("/choices/0/message/content").asText();
     }
 }
-

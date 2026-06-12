@@ -3,9 +3,12 @@ package com.voicedemo.gateway.ws;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.voicedemo.gateway.session.ConversationCoordinator;
+import com.voicedemo.gateway.session.SessionEvent;
 import com.voicedemo.gateway.session.SessionRegistry;
 import com.voicedemo.gateway.session.SessionState;
+import com.voicedemo.gateway.session.SessionStateMachine;
 import com.voicedemo.gateway.speech.AudioInboundPipeline;
+import com.voicedemo.gateway.speech.OutboundMixer;
 import com.voicedemo.gateway.speech.SttClient;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
@@ -29,6 +32,8 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
     private final SttClient sttClient;
     private final ControlMessageSender controlMessageSender;
     private final ConversationCoordinator conversationCoordinator;
+    private final OutboundMixer outboundMixer;
+    private final SessionStateMachine stateMachine;
     private final ObjectMapper objectMapper;
     private final Map<String, SessionState> browserSessions = new ConcurrentHashMap<>();
 
@@ -39,6 +44,8 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
             SttClient sttClient,
             ControlMessageSender controlMessageSender,
             ConversationCoordinator conversationCoordinator,
+            OutboundMixer outboundMixer,
+            SessionStateMachine stateMachine,
             ObjectMapper objectMapper) {
         this.sessionRegistry = sessionRegistry;
         this.audioInboundPipeline = audioInboundPipeline;
@@ -46,6 +53,8 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
         this.sttClient = sttClient;
         this.controlMessageSender = controlMessageSender;
         this.conversationCoordinator = conversationCoordinator;
+        this.outboundMixer = outboundMixer;
+        this.stateMachine = stateMachine;
         this.objectMapper = objectMapper;
     }
 
@@ -54,17 +63,17 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
         SessionState state = sessionRegistry.create(requestedSessionId(webSocketSession.getUri()));
         browserSessions.put(webSocketSession.getId(), state);
         sttClient.connect(state.sessionId(), (text, endTs) ->
-                conversationCoordinator.onUserUtterance(webSocketSession, state.sessionId(), text, endTs));
+                conversationCoordinator.onUserUtterance(webSocketSession, state, text, endTs));
         moshiClient.connect(state.sessionId(), new MoshiCallbacks() {
             @Override
             public void onOpen() {
-                state.markListening();
+                state.apply(stateMachine, SessionEvent.CLIENT_AND_MOSHI_OPEN);
                 controlMessageSender.sessionStart(webSocketSession, state.sessionId());
             }
 
             @Override
             public void onAudio(byte[] pcm) {
-                sendBinary(webSocketSession, pcm);
+                outboundMixer.forwardMoshiAudio(webSocketSession, state.sessionId(), pcm);
             }
 
             @Override
@@ -74,7 +83,7 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
 
             @Override
             public void onClose() {
-                state.markIdle();
+                state.apply(stateMachine, SessionEvent.MOSHI_WS_DROP);
                 controlMessageSender.error(webSocketSession, "MOSHI_WS_DROPPED", "Moshi connection closed");
                 closeQuietly(webSocketSession);
             }
@@ -122,24 +131,11 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         SessionState state = browserSessions.remove(session.getId());
         if (state != null) {
-            state.markIdle();
+            state.apply(stateMachine, SessionEvent.MOSHI_WS_DROP);
+            conversationCoordinator.onSessionClosed(state.sessionId());
             moshiClient.disconnect(state.sessionId());
             sttClient.disconnect(state.sessionId());
             sessionRegistry.remove(state.sessionId());
-        }
-    }
-
-    private void sendBinary(WebSocketSession session, byte[] pcm) {
-        if (!session.isOpen()) {
-            return;
-        }
-        try {
-            synchronized (session) {
-                session.sendMessage(new BinaryMessage(pcm));
-            }
-        } catch (IOException | IllegalStateException e) {
-            controlMessageSender.error(session, "AUDIO_SEND_FAILED", e.getMessage());
-            closeQuietly(session);
         }
     }
 
