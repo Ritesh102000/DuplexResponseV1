@@ -33,6 +33,9 @@ services:
   tts:
     build:
       context: ./tts-service
+    environment:
+      TTS_ESPEAK_VOICE: ${TTS_ESPEAK_VOICE:-en-us}
+      TTS_ESPEAK_SPEED: ${TTS_ESPEAK_SPEED:-165}
     ports:
       - "8082:8082"
   prometheus:

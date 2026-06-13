@@ -27,19 +27,32 @@ class SpeakRequest(BaseModel):
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    engine = "macos_say" if can_use_macos_say() else "stub_sine"
+    if can_use_macos_say():
+        engine = "macos_say"
+    elif can_use_espeak_ng():
+        engine = "espeak_ng"
+    else:
+        engine = "stub_sine"
     return {"status": "UP", "engine": engine}
 
 
 @app.post("/speak")
 def speak(request: SpeakRequest) -> Response:
     text = request.text.strip()
-    wav_bytes = synthesize_macos_say(text) or wav_from_pcm(synthesize_stub_pcm(text))
+    wav_bytes = (
+        synthesize_macos_say(text)
+        or synthesize_espeak_ng(text)
+        or wav_from_pcm(synthesize_stub_pcm(text))
+    )
     return Response(content=wav_bytes, media_type="audio/wav")
 
 
 def can_use_macos_say() -> bool:
     return shutil.which("say") is not None and shutil.which("afconvert") is not None
+
+
+def can_use_espeak_ng() -> bool:
+    return shutil.which("espeak-ng") is not None
 
 
 def synthesize_macos_say(text: str) -> bytes | None:
@@ -78,6 +91,82 @@ def synthesize_macos_say(text: str) -> bytes | None:
             return wav_path.read_bytes()
         except (OSError, subprocess.SubprocessError):
             return None
+
+
+def synthesize_espeak_ng(text: str) -> bytes | None:
+    if not can_use_espeak_ng():
+        return None
+
+    voice = os.getenv("TTS_ESPEAK_VOICE", os.getenv("TTS_VOICE", "en-us")).strip() or "en-us"
+    speed = os.getenv("TTS_ESPEAK_SPEED", "165").strip() or "165"
+    try:
+        result = subprocess.run(
+            ["espeak-ng", "--stdout", "-v", voice, "-s", speed, text],
+            check=True,
+            timeout=12,
+            capture_output=True,
+        )
+        return normalize_wav_to_contract(result.stdout)
+    except (OSError, subprocess.SubprocessError, wave.Error):
+        return None
+
+
+def normalize_wav_to_contract(wav_bytes: bytes) -> bytes:
+    with wave.open(io.BytesIO(wav_bytes), "rb") as wav_file:
+        channels = wav_file.getnchannels()
+        sample_width = wav_file.getsampwidth()
+        sample_rate = wav_file.getframerate()
+        frames = wav_file.readframes(wav_file.getnframes())
+
+    pcm = to_mono_pcm16(frames, channels, sample_width)
+    if sample_rate != SAMPLE_RATE:
+        pcm = resample_pcm16(pcm, sample_rate, SAMPLE_RATE)
+    return wav_from_pcm(pcm)
+
+
+def to_mono_pcm16(frames: bytes, channels: int, sample_width: int) -> bytes:
+    if channels < 1:
+        return b""
+
+    output = bytearray()
+    frame_width = channels * sample_width
+    for offset in range(0, len(frames) - frame_width + 1, frame_width):
+        total = 0
+        for channel in range(channels):
+            start = offset + channel * sample_width
+            total += sample_to_int16(frames[start:start + sample_width], sample_width)
+        output.extend(struct.pack("<h", int(total / channels)))
+    return bytes(output)
+
+
+def sample_to_int16(sample: bytes, sample_width: int) -> int:
+    if sample_width == 2:
+        return struct.unpack("<h", sample)[0]
+    if sample_width == 1:
+        return (sample[0] - 128) << 8
+    if sample_width == 4:
+        return max(-32768, min(32767, struct.unpack("<i", sample)[0] >> 16))
+    return 0
+
+
+def resample_pcm16(pcm: bytes, source_rate: int, target_rate: int) -> bytes:
+    if not pcm or source_rate <= 0:
+        return pcm
+
+    samples = [struct.unpack("<h", pcm[i:i + 2])[0] for i in range(0, len(pcm) - 1, 2)]
+    if not samples:
+        return b""
+
+    target_count = max(1, int(round(len(samples) * target_rate / source_rate)))
+    output = bytearray()
+    for index in range(target_count):
+        source_pos = index * source_rate / target_rate
+        left = int(source_pos)
+        right = min(left + 1, len(samples) - 1)
+        fraction = source_pos - left
+        value = int(samples[left] * (1.0 - fraction) + samples[right] * fraction)
+        output.extend(struct.pack("<h", max(-32768, min(32767, value))))
+    return bytes(output)
 
 
 def synthesize_stub_pcm(text: str) -> bytes:

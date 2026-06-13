@@ -94,6 +94,7 @@ Phase 6 - Hardening + packaging.
 - Ran Phase 6 validation successfully, including Docker image build and CPU compose stack health checks.
 - Added `scripts/flow_log.py`, a compact diagnostic helper that reads gateway JSONL events and writes `data/flow-log.md` with per-turn flow verdicts (`MOSHI_ONLY`, `BACKEND_SPOKEN`, and partial backend states), then wired the fixture flow-log command into CI.
 - Implemented real microphone STT after the Phase 6 checkpoint feedback: `RealSttClient` now buffers browser PCM, detects utterance boundaries, posts WAV chunks to `stt-service /transcribe`, and forwards returned text into the existing router/backend path. `stt-service` now uses lazy `faster-whisper` transcription instead of returning an empty placeholder response.
+- Fixed Docker TTS beeps after log review: `tts-service` now installs and uses `espeak-ng` in Linux containers, normalizes its output to 24 kHz mono WAV, and only falls back to `stub_sine` if no speech engine is available.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
@@ -120,6 +121,7 @@ Phase 6 - Hardening + packaging.
 - `SuppressionGate` sits between Moshi callbacks and `OutboundMixer`; it watches Moshi text during `ASK_IN_FLIGHT` and fades long-answer audio to silence.
 - `BargeInDetector` observes inbound browser PCM during `INJECTING`; if user speech lasts at least `BARGE_IN_MIN_MS`, it cancels the active injection.
 - `TtsClient` returns raw 24 kHz, 16-bit mono PCM frames to match the browser WebSocket contract.
+- `tts-service` engine priority is macOS `say` + `afconvert`, then Docker/Linux `espeak-ng`, then `stub_sine` fallback. If `/health` returns `stub_sine`, injected backend audio will sound like beeps.
 - Local real Moshi is installed at `/Users/riteshrajput/.venvs/moshi-mlx/bin/python` and can be started with `python -m moshi_mlx.local_web -q 4 --host 127.0.0.1 --port 8998 --no-browser`.
 - In `MOSHI_MODE=real`, the gateway now keeps the browser contract as raw 24 kHz PCM and bridges to Moshi's Ogg/Opus WebSocket payloads internally.
 - Moshi `sphn` response streams use an OpusHead input rate of 48 kHz. `OggOpusDecoder` must decode at 48 kHz and downsample to 24 kHz; decoding those packets directly at 24 kHz produces corrupted/near-silent audio.
@@ -147,7 +149,7 @@ Phase 6 - Hardening + packaging.
 - `MOSHI_MODE=real` now carries audio through the Java PCM/Ogg-Opus bridge and browser mic capture exists. Automated spoken-phrase probes return Moshi text and decoded PCM. Conversational quality and latency still need a human mic/speaker checkpoint with local Moshi.
 - The GPU compose overlay now defaults to `STT_MODE=real`. The first spoken turn can be slow while faster-whisper downloads/loads the configured model; subsequent turns should be faster.
 - If the human hears Moshi answering but no backend answer, generate `data/flow-log.md`; no new `utterance.end` / `router.decision` entries usually means STT did not produce text or the gateway is not actually running with `STT_MODE=real`.
-- `TTS_MODE=real` has a gateway-side client and FastAPI sidecar contract. On macOS it can speak through `say` + `afconvert`; on systems without those tools it falls back to deterministic tone audio until a concrete Piper voice/model path is installed.
+- `TTS_MODE=real` has a gateway-side client and FastAPI sidecar contract. On macOS it speaks through `say` + `afconvert`; in Docker it speaks through `espeak-ng`. Voice quality is robotic compared with Piper/Moshi, but it is real speech rather than tone audio.
 - `OutboundMixer` paces injected PCM frames at 80 ms/frame. If the browser shows `inject.start` without `inject.end`, restart the gateway to make sure the patched jar is running.
 - If the browser shows `TTS_STREAM_FAILED` with `Exceeded limit on max bytes to buffer : 262144`, the running gateway is stale; rebuild/restart with the commit that streams `DataBuffer` chunks in `RealTtsClient`.
 - FastAPI sidecar virtualenvs should be created with `/opt/homebrew/bin/python3.12` on this Mac. The default `python3` is 3.14 and can fail against pinned Pydantic/PyO3 wheels.

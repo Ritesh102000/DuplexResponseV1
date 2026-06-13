@@ -151,5 +151,6 @@
 - [x] Post-checkpoint real STT path converts microphone PCM to router utterances through `stt-service`.
 - [x] `RealSttClientTests` pass.
 - [x] `stt-service /transcribe` returns real faster-whisper text for generated speech audio.
+- [x] Post-checkpoint Docker TTS speaks through `espeak-ng` instead of `stub_sine`.
 - [ ] Human GPU/full-runtime compose checkpoint is complete.
 - [ ] Three-minute demo video is recorded.

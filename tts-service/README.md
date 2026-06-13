@@ -1,10 +1,11 @@
 # TTS Service
 
-FastAPI sidecar scaffold for Phase 3.
+FastAPI sidecar for text-to-speech.
 
 CI and normal development can use `TTS_MODE=stub` in the Java gateway, which
-plays a deterministic tone. To hear spoken responses locally on macOS, run this
-sidecar and start the gateway with `TTS_MODE=real`.
+plays a deterministic tone. To hear spoken responses, run this sidecar and start
+the gateway with `TTS_MODE=real`. On macOS it uses the system `say` command. In
+Docker it uses `espeak-ng`.
 
 ```sh
 /opt/homebrew/bin/python3.12 -m venv .venv
@@ -23,13 +24,19 @@ Optional macOS voice selection:
 TTS_VOICE=Alex uvicorn app.main:app --host 0.0.0.0 --port 8082
 ```
 
+Optional Docker/Linux voice selection:
+
+```sh
+TTS_ESPEAK_VOICE=en-us
+TTS_ESPEAK_SPEED=165
+```
+
 Endpoints:
 
 - `GET /health`
 - `POST /speak` with `{"text":"Canberra is the capital of Australia."}`
 
-`/speak` returns `audio/wav`: 24 kHz, 16-bit signed PCM, mono. On macOS, it uses
-the system `say` command plus `afconvert`. In Docker or on systems without those
-tools, it falls back to deterministic placeholder tone audio so Phase 3 can run
-without a local Piper install. Replace `synthesize_macos_say` or add a Piper
-engine once the selected voice file is available.
+`/speak` returns `audio/wav`: 24 kHz, 16-bit signed PCM, mono. Engine priority is
+macOS `say` + `afconvert`, then Docker/Linux `espeak-ng`, then deterministic
+placeholder tone audio only if no speech engine is available. Replace or extend
+the engine later with Piper once the selected voice file is available.

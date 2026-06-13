@@ -150,6 +150,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8082
 
 Then start the gateway with `TTS_MODE=real`. On macOS, the sidecar uses the
 system `say` voice and returns 24 kHz mono WAV audio to the gateway.
+In Docker, the sidecar uses `espeak-ng` and still returns 24 kHz mono WAV audio;
+`stub_sine` is only a fallback when no speech engine is available.
 
 ## Phase 4 Checks
 
