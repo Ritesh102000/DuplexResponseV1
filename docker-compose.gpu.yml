@@ -1,8 +1,68 @@
+# Optional real-runtime overlay.
+#
+# Default Mac path:
+#   1. Start MLX Moshi on the host:
+#      /Users/riteshrajput/.venvs/moshi-mlx/bin/python -m moshi_mlx.local_web \
+#        -q 4 --host 0.0.0.0 --port 8998 --no-browser
+#   2. Run:
+#      docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+#
+# Optional Linux GPU Moshi service:
+#   docker compose --profile linux-moshi -f docker-compose.yml -f docker-compose.gpu.yml up --build
+#
+# Optional local Ollama:
+#   docker compose --profile ollama -f docker-compose.yml -f docker-compose.gpu.yml up --build
+
 services:
+  gateway:
+    environment:
+      MOSHI_MODE: real
+      MOSHI_WS_URL: ${MOSHI_WS_URL:-ws://host.docker.internal:8998/api/chat}
+      STT_MODE: ${STT_MODE:-stub}
+      TTS_MODE: ${TTS_MODE:-real}
+      TTS_URL: http://tts:8082
+      LLM_MODE: ${LLM_MODE:-real}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL_ROUTER: ${LLM_MODEL_ROUTER:-gpt-5.4-mini}
+      LLM_MODEL_ANSWER: ${LLM_MODEL_ANSWER:-gpt-5.4-mini}
+      VOICE_WS_TOKEN: ${VOICE_WS_TOKEN:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      tts:
+        condition: service_healthy
+
   moshi:
-    image: python:3.12-slim
-    profiles: ["gpu"]
-    command: ["python", "-m", "moshi.server"]
+    image: python:3.12.8-slim
+    profiles: ["linux-moshi"]
+    environment:
+      MOSHI_SERVER_MODULE: ${MOSHI_SERVER_MODULE:-moshi.server}
+      MOSHI_PORT: ${MOSHI_PORT:-8998}
+      MOSHI_PIP_PACKAGE: ${MOSHI_PIP_PACKAGE:-moshi==0.2.10}
+    command:
+      - sh
+      - -c
+      - |
+        pip install --no-cache-dir "$${MOSHI_PIP_PACKAGE}" &&
+        python -m "$${MOSHI_SERVER_MODULE}" --host 0.0.0.0 --port "$${MOSHI_PORT}"
     ports:
       - "8998:8998"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: ["gpu"]
 
+  ollama:
+    image: ollama/ollama:0.5.7
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  ollama:

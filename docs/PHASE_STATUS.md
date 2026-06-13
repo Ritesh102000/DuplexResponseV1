@@ -7,8 +7,8 @@
 | Phase 2 - Transcripts + router | Complete | Passed: router-label validation, router eval, heuristic router tests, transcript buffer tests, WebSocket route-decision integration, `mvn verify` | Complete by human request to start Phase 3 | `phase-2: add transcripts and router` |
 | Phase 3 - Ask flow end-to-end | Complete | Passed: state-machine tests, ASK-flow WebSocket integration, stale-drop test, supersede test, `mvn -pl gateway verify` | Complete by human request to start Phase 4 | `phase-3: add ask flow job injection` |
 | Phase 4 - Suppression + barge-in | Complete | Passed: suppression/barge-in integration tests, `mvn -pl gateway verify` | Complete by human request to start Phase 5; formal 20-question dataset not recorded | `phase-4: add suppression gate and barge-in` |
-| Phase 5 - Metrics + evaluation | Complete | Passed: gateway verify, fixture analysis, stub flow judge, router checks, Python/JS syntax, dashboard JSON validation | Pending | `phase-5: add metrics and evaluation` |
-| Phase 6 - Hardening + packaging | Not started | Not run | Pending | Pending |
+| Phase 5 - Metrics + evaluation | Complete | Passed: gateway verify, fixture analysis, stub flow judge, router checks, Python/JS syntax, dashboard JSON validation | Complete by human request to start Phase 6; real chart/table still pending | `phase-5: add metrics and evaluation` |
+| Phase 6 - Hardening + packaging | Complete | Passed: auth/concurrency tests, gateway verify, router/metrics scripts, Python/JS syntax, compose config, Docker image build | Pending | `phase-6: harden and package demo` |
 
 ## Phase 0 Acceptance Checklist
 
@@ -122,4 +122,30 @@
 - [x] Router-label validation and router eval pass.
 - [x] Python and JS syntax checks pass.
 - [x] Grafana dashboard JSON validates.
+- [x] Human request to start Phase 6 accepted the checkpoint for phase progression.
 - [ ] Human real-runtime metrics chart/table is generated and pasted into `README.md`.
+
+## Phase 6 Acceptance Checklist
+
+- [x] `/ws/voice` supports opt-in bearer-token auth.
+- [x] Browser client can pass token via URL/localStorage.
+- [x] Browser client auto-reconnects after non-manual socket drops.
+- [x] Real sidecar modes perform startup `/health` retries.
+- [x] Real LLM client retries transient failures.
+- [x] ASK jobs inject a spoken fallback when answer/harmonizer calls fail.
+- [x] Moshi real-client connection failures surface to callbacks and reset state.
+- [x] Gateway, STT, and TTS Dockerfiles use pinned base tags and health checks.
+- [x] CPU compose stack includes gateway, STT, TTS, Prometheus, and Grafana health checks.
+- [x] GPU compose overlay supports Mac-hosted MLX Moshi, optional Linux Moshi, and optional Ollama.
+- [x] CI builds gateway, STT, and TTS images.
+- [x] README includes architecture, metrics, hard-problems, packaging, auth, and future-scope sections.
+- [x] Bearer-token handshake integration tests pass.
+- [x] Three-session isolation integration test passes.
+- [x] `mvn -pl gateway verify` passes.
+- [x] Router-label validation and router eval pass.
+- [x] Metrics fixture analysis and stub judge pass.
+- [x] Python and JS syntax checks pass.
+- [x] Compose config validation passes.
+- [x] Docker image build passes.
+- [ ] Human GPU/full-runtime compose checkpoint is complete.
+- [ ] Three-minute demo video is recorded.

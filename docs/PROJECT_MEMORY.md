@@ -1,10 +1,10 @@
 # Project Memory
 
 ## Current Goal
-Stop at the Phase 5 human checkpoint. Phase 5 metrics and evaluation are complete in automated fixture mode: JSONL events are mirrored to Micrometer, Prometheus/Grafana provisioning exists, sample event-log analysis emits a latency chart and CSV/JSON summaries, and the flow-break judge runs in stub mode.
+Stop at the Phase 6 human checkpoint. Phase 6 hardening and packaging are complete in automated stub mode: `/ws/voice` has opt-in bearer-token auth, browser auto-reconnect exists, real sidecars have startup health retries, real LLM calls retry/fallback on transient failures, Docker images are pinned/health-checked, compose packaging is updated, CI builds local images, and concurrent-session isolation is tested.
 
 ## Current Phase
-Phase 5 - Metrics + evaluation.
+Phase 6 - Hardening + packaging.
 
 ## Completed Work
 - Renamed the restart packet to `PLAN.md`.
@@ -80,6 +80,18 @@ Phase 5 - Metrics + evaluation.
 - Added `metrics/judge_flow.py` with stub and OpenAI-compatible real judge modes for natural spoken continuation / flow-break scoring.
 - Wired Phase 5 analysis and stub judge commands into CI.
 - Ran Phase 5 validation successfully.
+- Human requested Phase 6, which is treated as approval to proceed after Phase 5; the real-runtime metrics chart/table remains a human checkpoint artifact.
+- Added `BearerTokenHandshakeInterceptor`; `/ws/voice` accepts all clients by default, but when `VOICE_WS_TOKEN` is set it requires `Authorization: Bearer ...` or `?token=...`.
+- Updated the browser client to pass auth tokens from `?token=` or `localStorage.voiceWsToken` and auto-reconnect after non-manual socket drops.
+- Added `SidecarHealthVerifier` so real STT/TTS modes retry `/health` at startup and fail fast if sidecars are unavailable.
+- Added retry handling to `OpenAiCompatibleLlmClient` for transient failures and LLM fallback behavior in `AskJobService`.
+- Updated Dockerfiles with pinned base image tags and container health checks.
+- Added `.dockerignore` files for gateway, STT, and TTS build contexts.
+- Updated CPU compose health checks and `docker-compose.gpu.yml` for Mac-hosted MLX Moshi, optional Linux Moshi, and optional Ollama.
+- Wired Docker compose config validation and local image builds into CI.
+- Added Phase 6 tests for bearer-token WebSocket auth and three concurrent session isolation.
+- Updated README and architecture docs with final packaging, hard-problems, metrics, and future-scope sections.
+- Ran Phase 6 validation successfully, including Docker image build and CPU compose stack health checks.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
@@ -95,6 +107,10 @@ Phase 5 - Metrics + evaluation.
 - Prometheus scrapes gateway metrics from `/actuator/prometheus`; Grafana provisioning and the `Voice Two Brains` dashboard live under `ops/grafana/`.
 - `metrics/analyze.py` is standard-library Python and writes `latency_chart.png`, `summary.json`, `ask_latencies.csv`, and `router_confusion_matrix.csv`.
 - `metrics/judge_flow.py` runs in stub mode for CI and can call an OpenAI-compatible `/chat/completions` endpoint in real mode when `LLM_API_KEY` is set.
+- `/ws/voice` bearer-token auth is opt-in. Blank `VOICE_WS_TOKEN` preserves local dev behavior; a set token requires `Authorization: Bearer <token>` or `?token=<token>`.
+- The static browser client reconnects automatically up to 5 times after a socket close unless the user clicked Disconnect.
+- In real sidecar modes, `SidecarHealthVerifier` checks `STT_URL/health` and `TTS_URL/health` at startup with configured retries.
+- Real LLM calls retry retryable 429/5xx/transport failures and ASK jobs inject a spoken fallback if answer/harmonizer calls fail.
 - `AskJobService` owns in-process virtual-thread ASK jobs and one active ASK per session; a newer ASK supersedes the previous one.
 - `OutboundMixer` is now the only gateway component that writes binary audio to the browser.
 - `SuppressionGate` sits between Moshi callbacks and `OutboundMixer`; it watches Moshi text during `ASK_IN_FLIGHT` and fades long-answer audio to silence.
@@ -121,6 +137,7 @@ Phase 5 - Metrics + evaluation.
 - Real hosted LLM router eval has not been run yet.
 - Real hosted LLM answer/harmonizer behavior has not been run yet.
 - Phase 5 real judge has not been run against a real conversation sample set yet.
+- The optional Linux Moshi compose service defaults to `MOSHI_PIP_PACKAGE=moshi==0.2.10`; confirm the exact package/module before relying on that path for a GPU host.
 
 ## Known Issues
 - `MOSHI_MODE=real` now carries audio through the Java PCM/Ogg-Opus bridge and browser mic capture exists. Automated spoken-phrase probes return Moshi text and decoded PCM. Conversational quality and latency still need a human mic/speaker checkpoint with local Moshi.
@@ -134,9 +151,10 @@ Phase 5 - Metrics + evaluation.
 - Phase 4 was advanced by user request to start Phase 5, but the formal 20-question real-runtime suppression-rate dataset was not recorded as a separate artifact.
 - Existing `data/events.jsonl` predates Phase 5 `moshi.first_audio` instrumentation, so it cannot produce perceived-latency rows until the patched gateway records fresh ASK turns.
 - The Phase 5 human checkpoint still needs a fresh real-runtime metrics run and README chart/table update. Because `STT_MODE=stub` is still active, fully spoken router handoff is limited until real STT is implemented.
+- The Phase 6 human checkpoint still needs a full real-runtime compose run and a recorded 3-minute demo video.
 
 ## Next Exact Step
-Human runs the Phase 5 checkpoint with the patched gateway: generate a fresh real event log containing ASK turns, Moshi first audio, suppression, barge-in, and injection events; run `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`; then paste the real chart/table into `README.md`. After approval, a future agent may start Phase 6.
+Human runs the Phase 6 checkpoint: start real Moshi on the Mac, run `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build`, exercise the full real demo, run `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`, paste the real chart/table into `README.md`, and record the 3-minute demo video.
 
 ## Useful Commands
 - `mvn -pl gateway verify`
@@ -150,7 +168,12 @@ Human runs the Phase 5 checkpoint with the patched gateway: generate a fresh rea
 - `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`
 - `python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py`
 - `node --check gateway/src/main/resources/static/app.js && node --check gateway/src/main/resources/static/mic-capture-worklet.js`
+- `mvn -pl gateway -Dtest=BearerTokenHandshakeIntegrationTests,ConcurrentSessionIsolationIntegrationTests test`
+- `docker compose config`
+- `docker compose -f docker-compose.yml -f docker-compose.gpu.yml config`
+- `docker compose build gateway stt tts`
 - `docker compose up --build gateway prometheus grafana`
+- `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build`
 - `java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar --server.port=0`
 - `python3 stubs/fake-moshi/fake_moshi.py --port 8998`
 - `python3 stubs/fake-moshi/fake_moshi.py --port 8998 --fixture ack`

@@ -21,10 +21,14 @@ let resampleBuffer = new Float32Array(0);
 let resamplePosition = 0;
 let outputPlaybackTime = 0;
 let outputSources = new Set();
+let manualDisconnect = false;
+let activeSessionId;
+let reconnectAttempts = 0;
 
 const TARGET_SAMPLE_RATE = 24000;
 const BROWSER_FRAME_SAMPLES = Math.floor(TARGET_SAMPLE_RATE * 0.08);
 const OUTPUT_GAIN = 1;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 function log(line) {
   debugEl.textContent += `${new Date().toISOString()} ${line}\n`;
@@ -123,13 +127,19 @@ async function playSpeakerTest() {
 connectButton.addEventListener("click", () => {
   unlockAudio().catch((error) => log(`audio unlock error ${error.message}`));
   resetOutputQueue();
-  const sessionId = crypto.randomUUID();
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  socket = new WebSocket(`${protocol}://${window.location.host}/ws/voice?sessionId=${sessionId}`);
+  manualDisconnect = false;
+  reconnectAttempts = 0;
+  connectVoiceSocket(crypto.randomUUID());
+});
+
+function connectVoiceSocket(sessionId) {
+  activeSessionId = sessionId;
+  socket = openVoiceSocket(sessionId);
   socket.binaryType = "arraybuffer";
 
   socket.addEventListener("open", () => {
     setConnected(true);
+    reconnectAttempts = 0;
     log(`ws open sessionId=${sessionId}`);
   });
   socket.addEventListener("close", () => {
@@ -137,6 +147,16 @@ connectButton.addEventListener("click", () => {
     resetOutputQueue();
     setConnected(false);
     log("ws close");
+    if (!manualDisconnect && activeSessionId === sessionId && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      reconnectAttempts += 1;
+      const delayMs = Math.min(5000, 500 * reconnectAttempts);
+      log(`ws reconnect attempt ${reconnectAttempts} in ${delayMs}ms`);
+      window.setTimeout(() => {
+        if (!manualDisconnect && activeSessionId === sessionId) {
+          connectVoiceSocket(sessionId);
+        }
+      }, delayMs);
+    }
   });
   socket.addEventListener("message", async (event) => {
     if (typeof event.data === "string") {
@@ -150,9 +170,23 @@ connectButton.addEventListener("click", () => {
       log(`audio playback error ${error.message}`);
     }
   });
-});
+}
+
+function openVoiceSocket(sessionId) {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const url = new URL(`${protocol}://${window.location.host}/ws/voice`);
+  url.searchParams.set("sessionId", sessionId);
+  const token = new URLSearchParams(window.location.search).get("token")
+    || window.localStorage.getItem("voiceWsToken")
+    || "";
+  if (token) {
+    url.searchParams.set("token", token);
+  }
+  return new WebSocket(url);
+}
 
 disconnectButton.addEventListener("click", () => {
+  manualDisconnect = true;
   stopMic();
   socket?.close();
 });

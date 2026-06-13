@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 @Component
 public class AskJobService {
     private static final String TIMEOUT_TEXT = "Sorry, that took too long, but I can try again.";
+    private static final String BACKEND_FALLBACK_TEXT = "Sorry, I could not reach the answer model, but I can try again.";
 
     private final AnswerService answerService;
     private final Harmonizer harmonizer;
@@ -95,10 +96,12 @@ public class AskJobService {
 
     private void complete(AskJobRequest request, Consumer<AskJobResult> resultConsumer) {
         String rawAnswer;
+        boolean fallbackAnswer = false;
         try {
             rawAnswer = answerService.answer(request);
         } catch (Exception e) {
-            rawAnswer = TIMEOUT_TEXT;
+            rawAnswer = BACKEND_FALLBACK_TEXT;
+            fallbackAnswer = true;
         }
 
         ActiveAskJob active = activeJobs.get(request.sessionId());
@@ -108,11 +111,15 @@ public class AskJobService {
 
         active.cancelTimeout();
         long latencyMs = Instant.now().toEpochMilli() - request.dispatchedAt();
-        eventLogger.log("job.completed", request.sessionId(), Map.of(
-                "correlationId", request.correlationId(),
-                "utteranceId", request.utteranceId(),
-                "latencyMs", latencyMs
-        ));
+        Map<String, Object> completedAttributes = new java.util.LinkedHashMap<>();
+        completedAttributes.put("correlationId", request.correlationId());
+        completedAttributes.put("utteranceId", request.utteranceId());
+        completedAttributes.put("latencyMs", latencyMs);
+        if (fallbackAnswer) {
+            completedAttributes.put("fallback", true);
+            completedAttributes.put("reason", "llm_failure");
+        }
+        eventLogger.log("job.completed", request.sessionId(), completedAttributes);
 
         int delta = transcriptService.userTurnIndex(request.sessionId()) - request.userTurnIndexAtDispatch();
         if (delta > properties.staleTurnLimit() + 2) {
@@ -127,9 +134,17 @@ public class AskJobService {
         }
 
         boolean reintroduce = delta > properties.staleTurnLimit();
-        String text = harmonizer.harmonize(rawAnswer, transcriptService.recent(request.sessionId(), 12), reintroduce);
+        String text = harmonizeOrFallback(rawAnswer, request, reintroduce);
         activeJobs.remove(request.sessionId(), active);
         resultConsumer.accept(AskJobResult.inject(request, text, reintroduce));
+    }
+
+    private String harmonizeOrFallback(String rawAnswer, AskJobRequest request, boolean reintroduce) {
+        try {
+            return harmonizer.harmonize(rawAnswer, transcriptService.recent(request.sessionId(), 12), reintroduce);
+        } catch (Exception e) {
+            return reintroduce ? "About your earlier question, " + rawAnswer : rawAnswer;
+        }
     }
 
     private void timeout(AskJobRequest request, Consumer<AskJobResult> resultConsumer) {

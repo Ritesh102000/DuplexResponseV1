@@ -24,3 +24,7 @@ jobs:
         run: python3 metrics/analyze.py metrics/fixtures/events.jsonl --out metrics/out
       - name: Run stub flow judge
         run: python3 metrics/judge_flow.py metrics/fixtures/judge-samples.jsonl --out metrics/out --mode stub
+      - name: Validate Docker Compose config
+        run: docker compose config
+      - name: Build Docker images
+        run: docker compose build gateway stt tts

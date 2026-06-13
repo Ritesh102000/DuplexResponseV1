@@ -69,9 +69,14 @@ public class RealMoshiClient implements MoshiClient {
 
             @Override
             public void handleTransportError(WebSocketSession session, Throwable exception) {
+                removeSession(sessionId);
                 callbacks.onError(exception);
             }
-        }, properties.moshiWsUrl());
+        }, properties.moshiWsUrl()).exceptionally(error -> {
+            removeSession(sessionId);
+            callbacks.onError(error);
+            return null;
+        });
     }
 
     @Override

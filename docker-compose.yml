@@ -8,10 +8,13 @@ services:
       TTS_MODE: stub
       LLM_MODE: stub
       EVENT_LOG_PATH: /data/events.jsonl
+      VOICE_WS_TOKEN: ${VOICE_WS_TOKEN:-}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
+      SIDECAR_STARTUP_RETRIES: ${SIDECAR_STARTUP_RETRIES:-20}
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -34,7 +37,13 @@ services:
     volumes:
       - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
-      - gateway
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
   grafana:
     image: grafana/grafana:11.1.4
     environment:
@@ -47,4 +56,10 @@ services:
       - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12

@@ -21,6 +21,22 @@ flowchart LR
     TtsClient --> OutboundMixer
     OutboundMixer -->|PCM WS| Browser
     SessionStateMachine --> EventLogger
+    EventLogger --> MetricsFacade
+    MetricsFacade --> Prometheus
+```
+
+## Phase 6 Hardening
+
+```mermaid
+flowchart LR
+    Browser -->|Authorization bearer or token query| BearerTokenHandshakeInterceptor
+    BearerTokenHandshakeInterceptor --> BrowserSocketHandler
+    BrowserSocketHandler -->|drop/error| BrowserReconnect[Browser auto-reconnect]
+    GatewayStartup[Gateway startup] --> SidecarHealthVerifier
+    SidecarHealthVerifier --> STTHealth[stt-service /health]
+    SidecarHealthVerifier --> TTSHealth[tts-service /health]
+    LlmClient -->|429/5xx/timeout retry| OpenAICompatibleAPI
+    LlmClient -->|failure| AskFallback[spoken fallback answer]
 ```
 
 ## Happy ASK Sequence
@@ -85,4 +101,3 @@ sequenceDiagram
     G-->>B: inject.end
     G->>G: return to LISTENING
 ```
-

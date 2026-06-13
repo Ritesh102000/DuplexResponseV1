@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
 import java.util.List;
@@ -30,16 +31,50 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
                 "max_tokens", maxTokens,
                 "messages", messages
         );
-        JsonNode response = webClient.post()
-                .uri("/chat/completions")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + properties.llmApiKey())
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .block(Duration.ofMillis(properties.askTimeoutMs()));
-        if (response == null) {
-            throw new IllegalStateException("empty LLM response");
+        RuntimeException lastFailure = null;
+        int attempts = Math.max(1, properties.llmMaxRetries() + 1);
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                JsonNode response = webClient.post()
+                        .uri("/chat/completions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + properties.llmApiKey())
+                        .bodyValue(body)
+                        .retrieve()
+                        .bodyToMono(JsonNode.class)
+                        .block(Duration.ofMillis(properties.askTimeoutMs()));
+                if (response == null) {
+                    throw new IllegalStateException("empty LLM response");
+                }
+                return response.at("/choices/0/message/content").asText();
+            } catch (RuntimeException e) {
+                lastFailure = e;
+                if (!isRetryable(e) || attempt == attempts) {
+                    break;
+                }
+                sleepBeforeRetry();
+            }
         }
-        return response.at("/choices/0/message/content").asText();
+        throw new IllegalStateException("LLM chat failed after " + attempts + " attempt(s)", lastFailure);
+    }
+
+    private boolean isRetryable(RuntimeException failure) {
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof WebClientResponseException responseException) {
+                int status = responseException.getStatusCode().value();
+                return status == 429 || status >= 500;
+            }
+            current = current.getCause();
+        }
+        return true;
+    }
+
+    private void sleepBeforeRetry() {
+        try {
+            Thread.sleep(Math.max(0, properties.llmRetryBackoffMs()));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting to retry LLM call", e);
+        }
     }
 }

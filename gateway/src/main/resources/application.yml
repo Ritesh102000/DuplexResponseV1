@@ -15,6 +15,7 @@ voice:
   moshi-mode: ${MOSHI_MODE:stub}
   moshi-ws-url: ${MOSHI_WS_URL:ws://localhost:8998/api/chat}
   stt-mode: ${STT_MODE:stub}
+  stt-url: ${STT_URL:http://localhost:8081}
   tts-mode: ${TTS_MODE:stub}
   tts-url: ${TTS_URL:http://localhost:8082}
   llm-mode: ${LLM_MODE:stub}
@@ -30,3 +31,9 @@ voice:
   barge-in-min-ms: ${BARGE_IN_MIN_MS:400}
   barge-in-energy-threshold: ${BARGE_IN_ENERGY_THRESHOLD:0.015}
   stub-tts-frame-count: ${STUB_TTS_FRAME_COUNT:6}
+  ws-bearer-token: ${VOICE_WS_TOKEN:}
+  llm-max-retries: ${LLM_MAX_RETRIES:2}
+  llm-retry-backoff-ms: ${LLM_RETRY_BACKOFF_MS:300}
+  sidecar-startup-retries: ${SIDECAR_STARTUP_RETRIES:20}
+  sidecar-startup-backoff-ms: ${SIDECAR_STARTUP_BACKOFF_MS:500}
+  sidecar-health-timeout-ms: ${SIDECAR_HEALTH_TIMEOUT_MS:1500}
