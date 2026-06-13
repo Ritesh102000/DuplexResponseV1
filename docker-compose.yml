@@ -23,6 +23,11 @@ services:
   stt:
     build:
       context: ./stt-service
+    environment:
+      STT_WHISPER_MODEL: ${STT_WHISPER_MODEL:-small}
+      STT_DEVICE: ${STT_DEVICE:-cpu}
+      STT_COMPUTE_TYPE: ${STT_COMPUTE_TYPE:-int8}
+      STT_LANGUAGE: ${STT_LANGUAGE:-en}
     ports:
       - "8081:8081"
   tts:

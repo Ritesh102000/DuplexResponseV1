@@ -16,6 +16,10 @@ voice:
   moshi-ws-url: ${MOSHI_WS_URL:ws://localhost:8998/api/chat}
   stt-mode: ${STT_MODE:stub}
   stt-url: ${STT_URL:http://localhost:8081}
+  stt-energy-threshold: ${STT_ENERGY_THRESHOLD:0.012}
+  stt-min-speech-ms: ${STT_MIN_SPEECH_MS:400}
+  stt-silence-ms: ${STT_SILENCE_MS:700}
+  stt-max-utterance-ms: ${STT_MAX_UTTERANCE_MS:15000}
   tts-mode: ${TTS_MODE:stub}
   tts-url: ${TTS_URL:http://localhost:8082}
   llm-mode: ${LLM_MODE:stub}

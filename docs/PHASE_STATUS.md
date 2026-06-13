@@ -148,5 +148,8 @@
 - [x] Compose config validation passes.
 - [x] Docker image build passes.
 - [x] Post-checkpoint flow diagnostic helper writes `data/flow-log.md` from `data/events.jsonl`.
+- [x] Post-checkpoint real STT path converts microphone PCM to router utterances through `stt-service`.
+- [x] `RealSttClientTests` pass.
+- [x] `stt-service /transcribe` returns real faster-whisper text for generated speech audio.
 - [ ] Human GPU/full-runtime compose checkpoint is complete.
 - [ ] Three-minute demo video is recorded.

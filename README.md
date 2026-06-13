@@ -72,13 +72,14 @@ Then start the gateway in real Moshi mode:
 ```sh
 MOSHI_MODE=real \
 MOSHI_WS_URL=ws://127.0.0.1:8998/api/chat \
-STT_MODE=stub \
+STT_MODE=real \
+STT_URL=http://127.0.0.1:8081 \
 LLM_MODE=stub \
 TTS_MODE=stub \
 java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar
 ```
 
-Open `http://localhost:8080`, click **Test Speaker** to confirm browser output, then click **Connect** and **Start Mic**. The gateway keeps the browser side as raw 24 kHz PCM and bridges to Moshi's Ogg/Opus protocol internally.
+Open `http://localhost:8080`, click **Test Speaker** to confirm browser output, then click **Connect** and **Start Mic**. The gateway keeps the browser side as raw 24 kHz PCM, bridges to Moshi's Ogg/Opus protocol internally, and sends utterance-sized WAV chunks to STT when `STT_MODE=real`.
 
 If you see Moshi text in the debug panel but cannot hear audio, check the binary audio lines. `peak` is the raw decoded Moshi PCM level and `out` is the browser output level; values near `0.000` mean Moshi is returning silence for that chunk.
 
@@ -101,7 +102,7 @@ java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar
 Open `http://localhost:8080`, click **Connect**, then click **Send Utterance**.
 The debug panel should show `transcript.user` and `router.decision` messages.
 
-The STT sidecar scaffold can be started separately:
+The STT sidecar can be started separately:
 
 ```sh
 cd stt-service
@@ -110,6 +111,11 @@ cd stt-service
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8081
 ```
+
+`STT_MODE=real` makes the gateway buffer microphone PCM, detect utterance
+boundaries, send WAV chunks to `POST /transcribe`, and route the returned text
+through the normal router/backend path. The first transcription downloads/loads
+the configured faster-whisper model and can take longer than later turns.
 
 ## Phase 3 Checks
 
@@ -158,7 +164,7 @@ mvn -pl gateway -Dtest=Phase4SuppressionBargeInIntegrationTests test
 mvn -pl gateway verify
 python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
 python3 scripts/router_eval.py docs/eval/router-labels.jsonl
-python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py stubs/fake-moshi/fake_moshi.py
+python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py scripts/flow_log.py stubs/fake-moshi/fake_moshi.py
 node --check gateway/src/main/resources/static/app.js
 node --check gateway/src/main/resources/static/mic-capture-worklet.js
 ```
@@ -182,7 +188,7 @@ python3 metrics/analyze.py metrics/fixtures/events.jsonl --out metrics/out
 python3 metrics/judge_flow.py metrics/fixtures/judge-samples.jsonl --out metrics/out --mode stub
 python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
 python3 scripts/router_eval.py docs/eval/router-labels.jsonl
-python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py
+python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py scripts/flow_log.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py
 node --check gateway/src/main/resources/static/app.js
 node --check gateway/src/main/resources/static/mic-capture-worklet.js
 ```
@@ -253,7 +259,7 @@ python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
 python3 scripts/router_eval.py docs/eval/router-labels.jsonl
 python3 metrics/analyze.py metrics/fixtures/events.jsonl --out metrics/out
 python3 metrics/judge_flow.py metrics/fixtures/judge-samples.jsonl --out metrics/out --mode stub
-python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py
+python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py scripts/flow_log.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py
 node --check gateway/src/main/resources/static/app.js
 node --check gateway/src/main/resources/static/mic-capture-worklet.js
 docker compose config
@@ -277,6 +283,11 @@ Real Moshi on this Mac:
 
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 ```
+
+The GPU overlay defaults the gateway to `MOSHI_MODE=real`, `STT_MODE=real`,
+`TTS_MODE=real`, and `LLM_MODE=real`. With a valid `.env` API key, spoken mic
+questions should now create `transcript.user`, `router.decision`, backend job,
+and injection events without using the text box.
 
 If `VOICE_WS_TOKEN` is set, `/ws/voice` requires a bearer token. The browser can
 pass it with `http://localhost:8080/?token=<token>` or by setting

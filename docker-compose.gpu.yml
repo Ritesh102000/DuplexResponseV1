@@ -18,7 +18,8 @@ services:
     environment:
       MOSHI_MODE: real
       MOSHI_WS_URL: ${MOSHI_WS_URL:-ws://host.docker.internal:8998/api/chat}
-      STT_MODE: ${STT_MODE:-stub}
+      STT_MODE: ${STT_MODE:-real}
+      STT_URL: http://stt:8081
       TTS_MODE: ${TTS_MODE:-real}
       TTS_URL: http://tts:8082
       LLM_MODE: ${LLM_MODE:-real}
