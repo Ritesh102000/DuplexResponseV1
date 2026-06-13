@@ -22,6 +22,8 @@ jobs:
         run: python3 scripts/router_eval.py docs/eval/router-labels.jsonl
       - name: Analyze sample event log
         run: python3 metrics/analyze.py metrics/fixtures/events.jsonl --out metrics/out
+      - name: Write sample flow log
+        run: python3 scripts/flow_log.py metrics/fixtures/events.jsonl --out metrics/out/flow-log.md
       - name: Run stub flow judge
         run: python3 metrics/judge_flow.py metrics/fixtures/judge-samples.jsonl --out metrics/out --mode stub
       - name: Validate Docker Compose config

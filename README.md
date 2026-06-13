@@ -217,6 +217,18 @@ python3 metrics/analyze.py data/events.jsonl --out metrics/out-real
 Older event logs from before Phase 5 do not contain `moshi.first_audio`, so
 perceived latency can only be computed for sessions recorded after this phase.
 
+To write a small handoff/debug log showing whether recent turns were Moshi-only
+or backend-LLM spoken handoffs:
+
+```sh
+python3 scripts/flow_log.py data/events.jsonl --out data/flow-log.md
+```
+
+Open `data/flow-log.md` after a test run. `BACKEND_SPOKEN` means the flow reached
+`router.decision -> job.dispatched -> job.completed -> inject.start -> inject.end`.
+`MOSHI_ONLY` means the router chose chat, or no typed/STT utterance reached the
+router.
+
 To run Prometheus and Grafana:
 
 ```sh

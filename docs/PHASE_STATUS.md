@@ -147,5 +147,6 @@
 - [x] Python and JS syntax checks pass.
 - [x] Compose config validation passes.
 - [x] Docker image build passes.
+- [x] Post-checkpoint flow diagnostic helper writes `data/flow-log.md` from `data/events.jsonl`.
 - [ ] Human GPU/full-runtime compose checkpoint is complete.
 - [ ] Three-minute demo video is recorded.

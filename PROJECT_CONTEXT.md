@@ -6,7 +6,7 @@ Current objective:
 Stop at the Phase 6 human checkpoint after adding hardening, packaging, final README sections, and concurrent-session validation.
 
 Current status:
-Phase 6 automated stub acceptance is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan. The human request to implement Phase 6 is treated as approval to proceed after Phase 5. Phase 6 added opt-in `/ws/voice` bearer-token auth, browser auto-reconnect, real sidecar startup health retries, transient LLM retry/fallback behavior, pinned Docker images with health checks, CPU/GPU compose packaging, CI image builds, and a three-session isolation integration test. For local spoken backend answers, run `tts-service` on macOS from a Python 3.12 venv and start the gateway with `TTS_MODE=real`; `TTS_MODE=stub` intentionally plays a tone.
+Phase 6 automated stub acceptance is complete and ready for the human checkpoint. `PLAN.md` is the canonical plan. The human request to implement Phase 6 is treated as approval to proceed after Phase 5. Phase 6 added opt-in `/ws/voice` bearer-token auth, browser auto-reconnect, real sidecar startup health retries, transient LLM retry/fallback behavior, pinned Docker images with health checks, CPU/GPU compose packaging, CI image builds, and a three-session isolation integration test. For local spoken backend answers, run `tts-service` on macOS from a Python 3.12 venv and start the gateway with `TTS_MODE=real`; `TTS_MODE=stub` intentionally plays a tone. A small flow diagnostic helper now exists at `scripts/flow_log.py`; it reads `data/events.jsonl` and writes `data/flow-log.md` with per-turn verdicts such as `MOSHI_ONLY`, `BACKEND_SPOKEN`, and missing-injection states.
 
 Recent real-Moshi probe:
 Local Moshi MLX exists at `/Users/riteshrajput/.venvs/moshi-mlx/bin/python` with `moshi_mlx 0.3.0`. The server starts with `python -m moshi_mlx.local_web -q 4 --host 127.0.0.1 --port 8998 --no-browser`, loads cached `kyutai/moshiko-mlx-q4`, and accepts `/api/chat` with handshake `00`. `RealMoshiClient` bridges raw 24 kHz PCM from the browser to Ogg/Opus for Moshi and decodes Moshi Ogg/Opus back to raw PCM for the browser. Moshi's `sphn` writer emits OpusHead input rate `48000`, so the Java decoder must decode at 48 kHz and downsample to the browser's 24 kHz PCM. The static UI has AudioWorklet mic capture, queued PCM playback, browser audio unlock, a speaker test, and output peak logging.
@@ -18,7 +18,7 @@ Latest handoff test:
 With Moshi still connected in real mode and `LLM_MODE=real`, a typed `transcript.user` for `what is the capital of australia` produced `router.decision` label `ASK` with confidence `0.95`, a harmonized backend answer, `inject.start`, 59 binary PCM frames from real TTS, and `inject.end`.
 
 Next exact step:
-Run the Phase 6 human checkpoint: start real Moshi on the Mac, run `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build`, exercise a 3-minute demo with real Moshi/backend/TTS, generate real metrics with `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`, and record the final demo video.
+Run the Phase 6 human checkpoint: start real Moshi on the Mac, run `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build`, exercise a 3-minute demo with real Moshi/backend/TTS, generate a quick handoff log with `python3 scripts/flow_log.py data/events.jsonl --out data/flow-log.md`, generate real metrics with `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`, and record the final demo video.
 
 Important constraints:
 - Do not guess Moshi's wire protocol.
@@ -54,3 +54,4 @@ Validation completed:
 - Phase 6 compose validation: `docker compose config` and `docker compose -f docker-compose.yml -f docker-compose.gpu.yml config`.
 - Phase 6 browser validation: `node --check gateway/src/main/resources/static/app.js`.
 - Phase 6 full validation: `mvn -pl gateway verify`, router/metrics scripts, Python compile checks, JS syntax checks, Docker image build, CPU compose stack healthy, and endpoint probes for gateway/STT/TTS/Prometheus/Grafana.
+- Flow-log helper validation: `python3 -m py_compile scripts/flow_log.py`, `python3 scripts/flow_log.py data/events.jsonl --out data/flow-log.md --tail 12`, and `python3 scripts/flow_log.py metrics/fixtures/events.jsonl --out metrics/out/flow-log.md`.

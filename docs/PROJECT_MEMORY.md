@@ -92,6 +92,7 @@ Phase 6 - Hardening + packaging.
 - Added Phase 6 tests for bearer-token WebSocket auth and three concurrent session isolation.
 - Updated README and architecture docs with final packaging, hard-problems, metrics, and future-scope sections.
 - Ran Phase 6 validation successfully, including Docker image build and CPU compose stack health checks.
+- Added `scripts/flow_log.py`, a compact diagnostic helper that reads gateway JSONL events and writes `data/flow-log.md` with per-turn flow verdicts (`MOSHI_ONLY`, `BACKEND_SPOKEN`, and partial backend states), then wired the fixture flow-log command into CI.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
@@ -103,6 +104,7 @@ Phase 6 - Hardening + packaging.
 - Phase 3 ASK flow emits `utterance.end`, `router.decision`, `job.dispatched`, `job.completed`, `job.dropped_stale`, `inject.start`, and `inject.end` JSONL events.
 - Phase 4 adds `suppression.faded` and `barge_in` JSONL events.
 - Phase 5 adds `moshi.first_audio` JSONL events for ASK perceived-latency measurement.
+- `scripts/flow_log.py` is the quick handoff-debug tool for local runs; run it after a browser test to see whether the turn reached `router.decision`, backend job completion, and `inject.start/end`.
 - Every JSONL event is mirrored to Micrometer counter `voice.events`; events with `latencyMs` are mirrored to timer `voice.event.latency`.
 - Prometheus scrapes gateway metrics from `/actuator/prometheus`; Grafana provisioning and the `Voice Two Brains` dashboard live under `ops/grafana/`.
 - `metrics/analyze.py` is standard-library Python and writes `latency_chart.png`, `summary.json`, `ask_latencies.csv`, and `router_confusion_matrix.csv`.
@@ -143,6 +145,7 @@ Phase 6 - Hardening + packaging.
 - `MOSHI_MODE=real` now carries audio through the Java PCM/Ogg-Opus bridge and browser mic capture exists. Automated spoken-phrase probes return Moshi text and decoded PCM. Conversational quality and latency still need a human mic/speaker checkpoint with local Moshi.
 - `STT_MODE=real` is scaffolded but real streaming transcription is not implemented beyond sidecar boundaries.
 - Because `STT_MODE=stub` is active, spoken mic audio does not trigger router/backend LLM handoff yet. Use typed `Send Utterance` to test backend handoff while real Moshi handles microphone conversation.
+- If the human hears Moshi answering but no backend answer, generate `data/flow-log.md`; no new `utterance.end` / `router.decision` entries usually means the spoken mic path is only reaching Moshi because STT is still stubbed.
 - `TTS_MODE=real` has a gateway-side client and FastAPI sidecar contract. On macOS it can speak through `say` + `afconvert`; on systems without those tools it falls back to deterministic tone audio until a concrete Piper voice/model path is installed.
 - `OutboundMixer` paces injected PCM frames at 80 ms/frame. If the browser shows `inject.start` without `inject.end`, restart the gateway to make sure the patched jar is running.
 - If the browser shows `TTS_STREAM_FAILED` with `Exceeded limit on max bytes to buffer : 262144`, the running gateway is stale; rebuild/restart with the commit that streams `DataBuffer` chunks in `RealTtsClient`.
@@ -154,7 +157,7 @@ Phase 6 - Hardening + packaging.
 - The Phase 6 human checkpoint still needs a full real-runtime compose run and a recorded 3-minute demo video.
 
 ## Next Exact Step
-Human runs the Phase 6 checkpoint: start real Moshi on the Mac, run `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build`, exercise the full real demo, run `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`, paste the real chart/table into `README.md`, and record the 3-minute demo video.
+Human runs the Phase 6 checkpoint: start real Moshi on the Mac, run `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build`, exercise the full real demo, run `python3 scripts/flow_log.py data/events.jsonl --out data/flow-log.md`, run `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`, paste the real chart/table into `README.md`, and record the 3-minute demo video.
 
 ## Useful Commands
 - `mvn -pl gateway verify`
@@ -164,6 +167,8 @@ Human runs the Phase 6 checkpoint: start real Moshi on the Mac, run `docker comp
 - `python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl`
 - `python3 scripts/router_eval.py docs/eval/router-labels.jsonl`
 - `python3 metrics/analyze.py metrics/fixtures/events.jsonl --out metrics/out`
+- `python3 scripts/flow_log.py data/events.jsonl --out data/flow-log.md`
+- `python3 scripts/flow_log.py metrics/fixtures/events.jsonl --out metrics/out/flow-log.md`
 - `python3 metrics/judge_flow.py metrics/fixtures/judge-samples.jsonl --out metrics/out --mode stub`
 - `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`
 - `python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py`
