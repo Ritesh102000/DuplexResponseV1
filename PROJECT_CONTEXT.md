@@ -63,10 +63,10 @@ Latest real runtime start:
 The real local Qwen/STT/TTS/backend stack is currently running in detached `screen` sessions: `stt8081`, `tts8082`, and `gateway8080`. Health checks passed for gateway `8080`, STT `8081` (`faster_whisper`, model not yet loaded until mic transcription), TTS `8082` (`macos_say`), and Ollama `11434`. WebSocket smoke tests passed: a typed `hello there` turn routed `CHAT`, Qwen returned `Hello!`, and TTS streamed 7 audio frames; a typed `what is the capital of australia` turn routed `ASK`, sanitizer took `3ms`, fast Qwen returned `Checking for a factual answer...`, backend LLM answered in about `1.01s`, harmonizer in `923ms`, and backend TTS streamed 100 audio frames. `data/timing-log.md` and `data/flow-log.md` were regenerated from the live run.
 
 Latest git publish prep:
-Added `RUN.md` with direct local run steps and `EXPLANATION.md` as a compact LLM-readable project overview. `.gitignore` now explicitly excludes `.env.*`, root/runtime `data/`, `gateway/data/`, and the local-only `fast-layer-finetune/` workspace. Runtime logs and fine-tuning files should stay on this machine and should not be pushed. No git remote is configured in this local repository yet.
+Added `RUN.md` with direct local run steps and `EXPLANATION.md` as a compact LLM-readable project overview. `.gitignore` now explicitly excludes `.env.*`, root/runtime `data/`, `gateway/data/`, and the local-only `fast-layer-finetune/` workspace. Runtime logs and fine-tuning files should stay on this machine and should not be pushed. Git remote `origin` is `https://github.com/Ritesh102000/DuplexResponseV1.git`, and `main` tracks `origin/main`.
 
 Next exact step:
-For publishing, add a git remote and push `main`. For product work, implement the verifier before TTS for `ASK_PENDING` fast replies. It should block factual-looking Qwen outputs and replace them with a safe spoken fallback before audio is generated.
+For product work, implement the verifier before TTS for `ASK_PENDING` fast replies. It should block factual-looking Qwen outputs and replace them with a safe spoken fallback before audio is generated.
 
 Important constraints:
 - Do not guess Moshi's wire protocol.

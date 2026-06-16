@@ -111,6 +111,7 @@ Phase 6 - Hardening + packaging.
 - Started the real local stack in detached screens: `stt8081`, `tts8082`, and `gateway8080`, with Ollama already running. Health checks passed and typed WebSocket smoke tests confirmed both a real Qwen `CHAT` turn and a real backend `ASK` handoff.
 - Added `RUN.md` with simple step-by-step local startup instructions and `EXPLANATION.md` with a compact LLM-readable project overview.
 - Updated `.gitignore` so runtime logs, local environment files, gateway event logs, and the fine-tuning workspace are kept out of git.
+- Configured Git remote `origin` as `https://github.com/Ritesh102000/DuplexResponseV1.git`; local `main` tracks `origin/main`.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
@@ -202,7 +203,7 @@ Phase 6 - Hardening + packaging.
 - The Phase 6 human checkpoint still needs a full real-runtime compose run and a recorded 3-minute demo video.
 
 ## Next Exact Step
-For publishing, add a git remote and push `main`. For product work, implement verifier-gated TTS for `ASK_PENDING` fast replies: reject factual-looking Qwen output before speech generation and replace it with a safe fallback line.
+Implement verifier-gated TTS for `ASK_PENDING` fast replies: reject factual-looking Qwen output before speech generation and replace it with a safe fallback line.
 
 ## Useful Commands
 - `mvn -pl gateway verify`
