@@ -13,8 +13,47 @@ public class SessionStateMachine {
                     ? SessionStatus.LISTENING
                     : current;
             case LISTENING -> switch (event) {
+                case USER_UTTERANCE -> SessionStatus.ROUTING;
+                case ROUTER_CHAT -> SessionStatus.FAST_THINKING;
+                case ROUTER_ASK_PENDING -> SessionStatus.ASK_PENDING;
                 case MOSHI_AUDIO_STARTS -> SessionStatus.MOSHI_TALKING;
                 case ROUTER_ASK -> SessionStatus.ASK_IN_FLIGHT;
+                default -> current;
+            };
+            case ROUTING -> switch (event) {
+                case ROUTER_CHAT -> SessionStatus.FAST_THINKING;
+                case ROUTER_ASK_PENDING -> SessionStatus.ASK_PENDING;
+                case ROUTER_ASK -> SessionStatus.ASK_IN_FLIGHT;
+                default -> current;
+            };
+            case FAST_THINKING -> event == SessionEvent.FAST_REPLY_READY
+                    ? SessionStatus.FAST_SPEAKING
+                    : current;
+            case FAST_SPEAKING -> switch (event) {
+                case TTS_STREAM_ENDS, USER_SPEECH -> SessionStatus.LISTENING;
+                default -> current;
+            };
+            case ASK_PENDING -> switch (event) {
+                case USER_UTTERANCE, FAST_REPLY_REQUESTED -> SessionStatus.ASK_PENDING_FAST_THINKING;
+                case BACKEND_ANSWER_READY -> SessionStatus.ANSWER_READY;
+                case ROUTER_ASK_PENDING -> SessionStatus.ASK_PENDING;
+                default -> current;
+            };
+            case ASK_PENDING_FAST_THINKING -> switch (event) {
+                case FAST_REPLY_READY -> SessionStatus.ASK_PENDING_FAST_SPEAKING;
+                case BACKEND_ANSWER_READY -> SessionStatus.ANSWER_READY;
+                default -> current;
+            };
+            case ASK_PENDING_FAST_SPEAKING -> switch (event) {
+                case TTS_STREAM_ENDS, USER_SPEECH -> SessionStatus.ASK_PENDING;
+                case BACKEND_ANSWER_READY -> SessionStatus.ANSWER_READY;
+                default -> current;
+            };
+            case ANSWER_READY -> event == SessionEvent.BACKEND_INJECT_STARTED
+                    ? SessionStatus.BACKEND_INJECTING
+                    : current;
+            case BACKEND_INJECTING -> switch (event) {
+                case TTS_STREAM_ENDS, USER_SPEECH -> SessionStatus.LISTENING;
                 default -> current;
             };
             case MOSHI_TALKING -> switch (event) {

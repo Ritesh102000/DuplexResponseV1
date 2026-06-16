@@ -152,5 +152,19 @@
 - [x] `RealSttClientTests` pass.
 - [x] `stt-service /transcribe` returns real faster-whisper text for generated speech audio.
 - [x] Post-checkpoint Docker TTS speaks through `espeak-ng` instead of `stub_sine`.
+- [x] Post-checkpoint rich handoff logging captures user query, Moshi text, router input/decision, backend LLM request/response, harmonizer output, injected TTS text, and timing.
+- [x] Post-checkpoint runtime issues are tracked in root `issues.md`.
+- [x] Post-checkpoint Qwen3-4B fast conversational layer pivot is documented in `PLAN.md`.
+- [x] Post-checkpoint local Ollama `qwen3:4b` runtime is installed and reachable on `localhost:11434`.
+- [x] Post-checkpoint opt-in `VOICE_RUNTIME=qwen` gateway path is implemented with fast `CHAT`, `ASK_PENDING`, backend injection queueing, and Qwen flow-log events.
+- [x] Post-checkpoint `qwen2.5:1.5b` output diagnosis is recorded: faster/no-reasoning, but unsafe by prompt alone for `ASK_PENDING` truth ownership.
+- [x] Post-checkpoint fast-layer safety note exists at `docs/fast-layer-safety.md`.
+- [x] Post-checkpoint local LoRA fine-tuning workspace exists at `fast-layer-finetune/`.
+- [x] Post-checkpoint canonical fast-layer fine-tuning datasets exist at `fast-layer-finetune/data/train.jsonl` and `valid.jsonl` with duplicate assistant targets removed and spoken non-factual pending replies.
+- [x] Post-checkpoint `ASK_PENDING` sanitizer hides raw factual questions from the Qwen fast prompt.
+- [x] Post-checkpoint timing-only diagnostic log exists through `scripts/timing_log.py` and writes `data/timing-log.md`.
+- [x] Post-checkpoint real local Qwen/STT/TTS/backend stack starts and typed WebSocket `CHAT` plus `ASK` smoke tests pass.
+- [x] Post-checkpoint git handoff docs exist in `RUN.md` and `EXPLANATION.md`, with local runtime logs and fine-tuning workspace excluded from git.
+- [ ] Post-checkpoint verifier blocks unsafe `ASK_PENDING` fast replies before TTS.
 - [ ] Human GPU/full-runtime compose checkpoint is complete.
 - [ ] Three-minute demo video is recorded.

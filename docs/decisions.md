@@ -5,6 +5,7 @@ Date: 2026-06-12
 ## Summary
 
 - Hardware: Apple Mac M4, 16 GB unified memory.
+- Fast conversational layer: Qwen3-4B using STT/TTS, replacing Moshi as the main runtime path after the 2026-06-14 plan change.
 - Moshi: local Apple Silicon MLX q4, `kyutai/moshiko-mlx-q4`.
 - Voice: `moshiko` male.
 - Backend LLM: hosted OpenAI-compatible API.
@@ -52,3 +53,19 @@ Date: 2026-06-12
    Answer: Mac + API.
    Consequence: Moshi/STT/TTS local; backend LLM hosted.
 
+## Update - 2026-06-14
+
+New direction:
+Use Qwen3-4B as the fast conversational "System 1" layer through STT and TTS. Moshi is no longer the main runtime path for the product goal, though existing Moshi code can remain as legacy/optional mode during migration.
+
+Consequence:
+The gateway should support a Qwen-first flow:
+- `CHAT`: Qwen3-4B answers normally and briefly.
+- `ASK`: backend factual answer job starts, while Qwen3-4B continues natural conversation in `ASK_PENDING` mode without answering the factual question.
+- Backend factual model remains the source of truth for final factual answers.
+
+Local runtime:
+Ollama 0.30.8 is installed on this Mac, running on `127.0.0.1:11434`, with local model tag `qwen3:4b`. Use OpenAI-compatible base URL `http://localhost:11434/v1` for the Qwen fast-layer integration.
+
+Runtime caveat:
+The local `qwen3:4b` tag advertises thinking capability and local probes showed reasoning output can consume the response even when no-thinking controls are requested. The application must not send Qwen reasoning text to TTS; it should filter thinking fields/text or use a non-thinking fast model variant if latency/clean output is not acceptable.

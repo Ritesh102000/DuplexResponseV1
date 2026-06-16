@@ -10,10 +10,14 @@ import java.nio.charset.StandardCharsets;
 public class PromptLibrary {
     private final String answerStyle;
     private final String harmonizer;
+    private final String fastChat;
+    private final String fastAskPending;
 
     public PromptLibrary() {
         this.answerStyle = read("prompts/answer_style.txt");
         this.harmonizer = read("prompts/harmonizer.txt");
+        this.fastChat = read("prompts/fast_chat.txt");
+        this.fastAskPending = read("prompts/fast_ask_pending.txt");
     }
 
     public String answerStyle() {
@@ -22,6 +26,14 @@ public class PromptLibrary {
 
     public String harmonizer() {
         return harmonizer;
+    }
+
+    public String fastChat() {
+        return fastChat;
+    }
+
+    public String fastAskPending() {
+        return fastAskPending;
     }
 
     private String read(String path) {

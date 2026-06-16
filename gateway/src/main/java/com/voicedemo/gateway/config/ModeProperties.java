@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "voice")
 public record ModeProperties(
+        String runtime,
         String moshiMode,
         String moshiWsUrl,
         String sttMode,
@@ -19,6 +20,14 @@ public record ModeProperties(
         String llmApiKey,
         String llmModelAnswer,
         String llmModelRouter,
+        String fastLlmMode,
+        String fastLlmBaseUrl,
+        String fastLlmApiKey,
+        String fastLlmModel,
+        int fastReplyMaxTokens,
+        double fastReplyTemperature,
+        int fastPendingMaxWords,
+        int fastStaleUtteranceMs,
         int askTimeoutMs,
         int staleTurnLimit,
         String eventLogPath,

@@ -12,7 +12,7 @@ import java.util.Set;
 @ConditionalOnProperty(name = "voice.llm-mode", havingValue = "stub", matchIfMissing = true)
 public class HeuristicRouter implements RouterService {
     private static final Set<String> ASK_PREFIXES = Set.of(
-            "what", "who", "why", "when", "where", "which", "how",
+            "what", "whats", "who", "why", "when", "where", "which", "how",
             "is", "are", "does", "do", "did", "could you compare",
             "can you summarize", "can you explain", "can you give",
             "can you list", "can you make the answer", "explain"
@@ -51,7 +51,10 @@ public class HeuristicRouter implements RouterService {
                 || normalized.contains(" calculate ")
                 || normalized.contains(" command to ")
                 || normalized.contains(" how do i ")
-                || normalized.contains(" how can i ");
+                || normalized.contains(" how can i ")
+                || normalized.startsWith("capital of ")
+                || normalized.startsWith("cap of ")
+                || normalized.contains(" cap of ");
     }
 
     private boolean startsWithAny(String normalized, Set<String> prefixes) {

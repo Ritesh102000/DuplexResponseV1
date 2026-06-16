@@ -2,6 +2,7 @@ package com.voicedemo.gateway.ws;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voicedemo.gateway.config.ModeProperties;
 import com.voicedemo.gateway.session.ConversationCoordinator;
 import com.voicedemo.gateway.metrics.MoshiFirstAudioTracker;
 import com.voicedemo.gateway.session.SessionEvent;
@@ -40,6 +41,7 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
     private final BargeInDetector bargeInDetector;
     private final MoshiFirstAudioTracker moshiFirstAudioTracker;
     private final SessionStateMachine stateMachine;
+    private final ModeProperties properties;
     private final ObjectMapper objectMapper;
     private final Map<String, SessionState> browserSessions = new ConcurrentHashMap<>();
 
@@ -55,6 +57,7 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
             BargeInDetector bargeInDetector,
             MoshiFirstAudioTracker moshiFirstAudioTracker,
             SessionStateMachine stateMachine,
+            ModeProperties properties,
             ObjectMapper objectMapper) {
         this.sessionRegistry = sessionRegistry;
         this.audioInboundPipeline = audioInboundPipeline;
@@ -67,6 +70,7 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
         this.bargeInDetector = bargeInDetector;
         this.moshiFirstAudioTracker = moshiFirstAudioTracker;
         this.stateMachine = stateMachine;
+        this.properties = properties;
         this.objectMapper = objectMapper;
     }
 
@@ -76,6 +80,11 @@ public class BrowserSocketHandler extends BinaryWebSocketHandler {
         browserSessions.put(webSocketSession.getId(), state);
         sttClient.connect(state.sessionId(), (text, endTs) ->
                 conversationCoordinator.onUserUtterance(webSocketSession, state, text, endTs));
+        if ("qwen".equalsIgnoreCase(properties.runtime())) {
+            state.apply(stateMachine, SessionEvent.CLIENT_AND_MOSHI_OPEN);
+            controlMessageSender.sessionStart(webSocketSession, state.sessionId());
+            return;
+        }
         moshiClient.connect(state.sessionId(), new MoshiCallbacks() {
             @Override
             public void onOpen() {

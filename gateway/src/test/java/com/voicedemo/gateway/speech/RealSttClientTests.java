@@ -1,13 +1,19 @@
 package com.voicedemo.gateway.speech;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import com.voicedemo.gateway.config.ModeProperties;
+import com.voicedemo.gateway.metrics.EventLogger;
+import com.voicedemo.gateway.metrics.MetricsFacade;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -16,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class RealSttClientTests {
     @Test
-    void postsBufferedSpeechToSidecarAfterTrailingSilence() throws Exception {
+    void postsBufferedSpeechToSidecarAfterTrailingSilence(@TempDir Path tempDir) throws Exception {
         AtomicReference<byte[]> requestBody = new AtomicReference<>();
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/transcribe", exchange -> {
@@ -31,7 +37,13 @@ class RealSttClientTests {
         });
         server.start();
 
-        RealSttClient client = new RealSttClient(properties(server), WebClient.builder());
+        ModeProperties properties = properties(server, tempDir.resolve("events.jsonl"));
+        EventLogger eventLogger = new EventLogger(
+                new ObjectMapper(),
+                properties,
+                new MetricsFacade(new SimpleMeterRegistry())
+        );
+        RealSttClient client = new RealSttClient(properties, WebClient.builder(), eventLogger);
         try {
             CompletableFuture<String> utterance = new CompletableFuture<>();
             CompletableFuture<Long> endTs = new CompletableFuture<>();
@@ -58,8 +70,9 @@ class RealSttClientTests {
         }
     }
 
-    private ModeProperties properties(HttpServer server) {
+    private ModeProperties properties(HttpServer server, Path eventLogPath) {
         return new ModeProperties(
+                "moshi",
                 "stub",
                 "ws://localhost:8998/api/chat",
                 "real",
@@ -75,9 +88,17 @@ class RealSttClientTests {
                 "",
                 "gpt-5.4-mini",
                 "gpt-5.4-mini",
+                "stub",
+                "http://localhost:11434/v1",
+                "",
+                "qwen3:4b",
+                60,
+                0.7,
+                18,
+                4_000,
                 20_000,
                 2,
-                "./data/events.jsonl",
+                eventLogPath.toString(),
                 8,
                 250,
                 400,

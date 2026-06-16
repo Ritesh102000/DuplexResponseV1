@@ -9,6 +9,7 @@ import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -20,6 +21,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 @Component
 public class AskJobService {
@@ -140,11 +142,41 @@ public class AskJobService {
     }
 
     private String harmonizeOrFallback(String rawAnswer, AskJobRequest request, boolean reintroduce) {
+        List<com.voicedemo.gateway.transcript.TranscriptLine> recent = transcriptService.recent(request.sessionId(), 12);
+        eventLogger.log("llm.harmonizer.request", request.sessionId(), Map.of(
+                "correlationId", request.correlationId(),
+                "utteranceId", request.utteranceId(),
+                "reintroduce", reintroduce,
+                "rawAnswer", rawAnswer,
+                "transcriptWindow", formatTranscript(recent)
+        ));
+        long startedAt = Instant.now().toEpochMilli();
         try {
-            return harmonizer.harmonize(rawAnswer, transcriptService.recent(request.sessionId(), 12), reintroduce);
+            String response = harmonizer.harmonize(rawAnswer, recent, reintroduce);
+            eventLogger.log("llm.harmonizer.response", request.sessionId(), Map.of(
+                    "correlationId", request.correlationId(),
+                    "utteranceId", request.utteranceId(),
+                    "latencyMs", Instant.now().toEpochMilli() - startedAt,
+                    "text", response
+            ));
+            return response;
         } catch (Exception e) {
-            return reintroduce ? "About your earlier question, " + rawAnswer : rawAnswer;
+            String fallback = reintroduce ? "About your earlier question, " + rawAnswer : rawAnswer;
+            eventLogger.log("llm.harmonizer.error", request.sessionId(), Map.of(
+                    "correlationId", request.correlationId(),
+                    "utteranceId", request.utteranceId(),
+                    "latencyMs", Instant.now().toEpochMilli() - startedAt,
+                    "error", e.getClass().getSimpleName(),
+                    "fallbackText", fallback
+            ));
+            return fallback;
         }
+    }
+
+    private String formatTranscript(List<com.voicedemo.gateway.transcript.TranscriptLine> lines) {
+        return lines.stream()
+                .map(line -> line.speaker().name().toLowerCase() + ": " + line.text())
+                .collect(Collectors.joining("\n"));
     }
 
     private void timeout(AskJobRequest request, Consumer<AskJobResult> resultConsumer) {

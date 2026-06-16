@@ -1,6 +1,7 @@
 package com.voicedemo.gateway.speech;
 
 import com.voicedemo.gateway.config.ModeProperties;
+import com.voicedemo.gateway.metrics.EventLogger;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
@@ -9,9 +10,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.ByteArrayOutputStream;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -24,6 +27,7 @@ public class RealSttClient implements SttClient, DisposableBean {
     private static final Duration TRANSCRIBE_TIMEOUT = Duration.ofSeconds(60);
 
     private final WebClient webClient;
+    private final EventLogger eventLogger;
     private final double energyThreshold;
     private final int minSpeechMs;
     private final int silenceMs;
@@ -31,8 +35,9 @@ public class RealSttClient implements SttClient, DisposableBean {
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final Map<String, SessionBuffer> sessions = new ConcurrentHashMap<>();
 
-    public RealSttClient(ModeProperties properties, WebClient.Builder builder) {
+    public RealSttClient(ModeProperties properties, WebClient.Builder builder, EventLogger eventLogger) {
         this.webClient = builder.baseUrl(properties.sttUrl()).build();
+        this.eventLogger = eventLogger;
         this.energyThreshold = properties.sttEnergyThreshold();
         this.minSpeechMs = properties.sttMinSpeechMs();
         this.silenceMs = properties.sttSilenceMs();
@@ -83,6 +88,16 @@ public class RealSttClient implements SttClient, DisposableBean {
 
     private void transcribe(String sessionId, SttCallbacks callbacks, PendingUtterance pending) {
         executor.submit(() -> {
+            long startedAt = Instant.now().toEpochMilli();
+            int audioMs = durationMs(pending.pcm());
+            eventLogger.log("stt.transcribe.start", sessionId, sttPayload(
+                    pending.endTs(),
+                    audioMs,
+                    pending.pcm().length,
+                    0,
+                    0,
+                    ""
+            ));
             try {
                 UtteranceResponse[] responses = webClient.post()
                         .uri(uriBuilder -> uriBuilder
@@ -96,17 +111,75 @@ public class RealSttClient implements SttClient, DisposableBean {
                         .bodyToMono(UtteranceResponse[].class)
                         .block(TRANSCRIBE_TIMEOUT);
                 if (responses == null) {
+                    eventLogger.log("stt.transcribe.response", sessionId, sttPayload(
+                            pending.endTs(),
+                            audioMs,
+                            pending.pcm().length,
+                            Instant.now().toEpochMilli() - startedAt,
+                            0,
+                            ""
+                    ));
                     return;
+                }
+                int responseCount = (int) Arrays.stream(responses)
+                        .filter(response -> response != null
+                                && response.text() != null
+                                && !response.text().isBlank())
+                        .count();
+                if (responseCount == 0) {
+                    eventLogger.log("stt.transcribe.response", sessionId, sttPayload(
+                            pending.endTs(),
+                            audioMs,
+                            pending.pcm().length,
+                            Instant.now().toEpochMilli() - startedAt,
+                            0,
+                            ""
+                    ));
                 }
                 for (UtteranceResponse response : responses) {
                     if (response != null && response.text() != null && !response.text().isBlank()) {
+                        eventLogger.log("stt.transcribe.response", sessionId, sttPayload(
+                                response.endTs(),
+                                audioMs,
+                                pending.pcm().length,
+                                Instant.now().toEpochMilli() - startedAt,
+                                responseCount,
+                                ""
+                        ));
                         callbacks.onUtterance(response.text().strip(), response.endTs());
                     }
                 }
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException e) {
+                eventLogger.log("stt.transcribe.error", sessionId, sttPayload(
+                        pending.endTs(),
+                        audioMs,
+                        pending.pcm().length,
+                        Instant.now().toEpochMilli() - startedAt,
+                        0,
+                        e.getClass().getSimpleName()
+                ));
                 // STT is best-effort. Moshi still owns the live floor if transcription fails.
             }
         });
+    }
+
+    private Map<String, Object> sttPayload(
+            long endTs,
+            int audioMs,
+            int audioBytes,
+            long latencyMs,
+            int responseCount,
+            String status) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("endTs", endTs);
+        payload.put("audioMs", audioMs);
+        payload.put("audioBytes", audioBytes);
+        payload.put("latencyMs", latencyMs);
+        payload.put("responseCount", responseCount);
+        if (status != null && !status.isBlank()) {
+            payload.put("status", status);
+        }
+        return payload;
     }
 
     private double rms(byte[] pcm) {

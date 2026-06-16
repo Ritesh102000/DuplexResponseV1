@@ -6,11 +6,14 @@ gateway/target/
 
 # Local runtime data
 data/
+gateway/data/
 metrics/out*/
 *.log
 
 # Local secrets
 .env
+.env.*
+!.env.example
 
 # Local Python environments
 .venv/
@@ -19,3 +22,6 @@ metrics/out*/
 # Python caches
 __pycache__/
 *.pyc
+
+# Local-only fine-tuning workspace
+fast-layer-finetune/

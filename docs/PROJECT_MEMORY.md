@@ -95,9 +95,34 @@ Phase 6 - Hardening + packaging.
 - Added `scripts/flow_log.py`, a compact diagnostic helper that reads gateway JSONL events and writes `data/flow-log.md` with per-turn flow verdicts (`MOSHI_ONLY`, `BACKEND_SPOKEN`, and partial backend states), then wired the fixture flow-log command into CI.
 - Implemented real microphone STT after the Phase 6 checkpoint feedback: `RealSttClient` now buffers browser PCM, detects utterance boundaries, posts WAV chunks to `stt-service /transcribe`, and forwards returned text into the existing router/backend path. `stt-service` now uses lazy `faster-whisper` transcription instead of returning an empty placeholder response.
 - Fixed Docker TTS beeps after log review: `tts-service` now installs and uses `espeak-ng` in Linux containers, normalizes its output to 24 kHz mono WAV, and only falls back to `stub_sine` if no speech engine is available.
+- Added rich handoff/conversation diagnostics after real-runtime testing showed Moshi can still answer factual questions around backend handoff. Fresh gateway JSONL logs now include user query text, Moshi text, router input/decision, backend answer LLM request/response, harmonizer input/output, final injected TTS text, and timing; `scripts/flow_log.py` renders those fields into `data/flow-log.md`.
+- Added root-level `issues.md` to track current real-runtime problems and the recommended fix order from the latest handoff logs.
+- Added a top-level `PLAN.md` `CHANGES - Qwen3-4B Fast Conversational Layer` section. This records the new product direction: replace Moshi as the main fast layer with a controllable Qwen3-4B text LLM using STT/TTS, while keeping the backend factual answer model for truth ownership.
+- Installed local Ollama 0.30.8 through Homebrew, started it as a background service on `127.0.0.1:11434`, pulled `qwen3:4b`, and verified native plus OpenAI-compatible local API calls reach the model.
+- Implemented the opt-in Qwen runtime path in the gateway: `VOICE_RUNTIME=qwen` skips Moshi connection, routes audio only to STT, uses `FastConversationService` for Qwen `CHAT` replies and `ASK_PENDING` holding replies, queues backend answer injection until fast TTS is idle, logs Qwen/backend handoff events, and extends `scripts/flow_log.py` for the new events.
+- Ran a fresh Qwen runtime log check with `FAST_LLM_MODEL=qwen2.5:1.5b`. The fast model improved latency and removed Qwen3-style reasoning output, but it still answered the pending factual question during `ASK_PENDING` (`Well, that's Canberra!`), proving the gateway needs code-level truth-ownership enforcement instead of prompt-only control.
+- Added `docs/fast-layer-safety.md`, documenting the three-step plan for an interactive fast layer that does not answer facts: fine-tune for conversational style, sanitize `ASK_PENDING` prompts, and verify fast drafts before TTS.
+- Added `fast-layer-finetune/` as the local LoRA fine-tuning workspace, with a README, decisions/states doc, data guide, and gitignored local output directories for adapters/models/checkpoints.
+- Cleaned the canonical fine-tuning datasets at `fast-layer-finetune/data/train.jsonl` and `fast-layer-finetune/data/valid.jsonl`: assistant targets now have no exact duplicates, more spoken phrasing, preserved state distribution, no obvious hard factual leakage, and all replies stay under the 20-word target.
+- Implemented a local `AskPendingPromptSanitizer` in the gateway. `ASK_PENDING` fast-model prompts now hide the raw factual question, latest user text, and transcript window from Qwen and instead send abstract `STATE`, `SANITIZED_CONTEXT`, `LATEST_USER_INTENT`, and `RULES` fields.
+- Fixed the heuristic router so slang factual questions such as `whats the cap of aus` and `cap of aus` route to `ASK`, allowing the sanitizer path to run.
+- Added timing-only diagnostics: gateway events now include millisecond timings for STT, router, sanitizer, fast LLM, backend LLM, harmonizer, and TTS; `scripts/timing_log.py` writes a text-free timing table to `data/timing-log.md`.
+- Simplified `data/timing-log.md` so timings display as `ms` under one second and `s` above one second, each timing cell includes the step name and duration, TTS is collapsed to front/backend totals, and each row shows the slowest step.
+- Started the real local stack in detached screens: `stt8081`, `tts8082`, and `gateway8080`, with Ollama already running. Health checks passed and typed WebSocket smoke tests confirmed both a real Qwen `CHAT` turn and a real backend `ASK` handoff.
+- Added `RUN.md` with simple step-by-step local startup instructions and `EXPLANATION.md` with a compact LLM-readable project overview.
+- Updated `.gitignore` so runtime logs, local environment files, gateway event logs, and the fine-tuning workspace are kept out of git.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
+- Active plan direction is now the `PLAN.md` `CHANGES` section: Qwen3-4B is the fast conversational layer; Moshi is legacy/optional during migration.
+- Local Qwen runtime is Ollama at `http://localhost:11434`; OpenAI-compatible base URL is `http://localhost:11434/v1`; local model tag is `qwen3:4b`.
+- Fine-tuning workspace is `fast-layer-finetune/`; current target is `Qwen/Qwen2.5-1.5B-Instruct + LoRA`.
+- Canonical local fine-tuning data is `fast-layer-finetune/data/train.jsonl` and `fast-layer-finetune/data/valid.jsonl`; the cleaned set covers `CHAT`, `ASK_PENDING`, `ASK_PENDING_USER_CONTINUES`, and `BACKEND_READY_WAITING`.
+- `AskPendingPromptSanitizer` is the first code-level safety boundary for the Qwen path. It is rule-based and local, so it should not add meaningful latency compared with STT, Qwen generation, backend LLM, or TTS.
+- The heuristic router has explicit ASK cues for `whats`, `cap of ...`, and `capital of ...`; without this, informal factual queries can bypass sanitizer by being mislabeled as `CHAT`.
+- `VOICE_RUNTIME=qwen` is now implemented as an opt-in gateway path. The legacy Moshi path remains available when `VOICE_RUNTIME` is not `qwen`.
+- New target flow is STT -> router -> Qwen3-4B fast conversation for `CHAT`, and STT -> router -> `ASK_PENDING` Qwen conversation plus backend factual answer injection for `ASK`.
+- New target states include `LISTENING`, `ROUTING`, `FAST_THINKING`, `FAST_SPEAKING`, `ASK_PENDING`, `ASK_PENDING_FAST_THINKING`, `ASK_PENDING_FAST_SPEAKING`, `ANSWER_READY`, and `BACKEND_INJECTING`.
 - Browser and Moshi audio use raw binary WebSockets in later phases.
 - External systems must sit behind Java interfaces with stub and real implementations.
 - Stub mode must pass without GPU, API key, or model-provider network access.
@@ -107,6 +132,11 @@ Phase 6 - Hardening + packaging.
 - Phase 4 adds `suppression.faded` and `barge_in` JSONL events.
 - Phase 5 adds `moshi.first_audio` JSONL events for ASK perceived-latency measurement.
 - `scripts/flow_log.py` is the quick handoff-debug tool for local runs; run it after a browser test to see whether the turn reached `router.decision`, backend job completion, and `inject.start/end`.
+- For fresh logs, `data/flow-log.md` also shows the user query, nearby Moshi text, router transcript window, exact backend answer-model messages, raw backend answer, harmonizer input/output, final text sent to TTS/injection, and timing deltas between those events.
+- `scripts/timing_log.py` is the timing-only diagnostic tool; it reads `data/events.jsonl` and writes `data/timing-log.md` with simple duration columns for STT, router, sanitizer, front LLM, front TTS, back LLM, harmonizer, and back TTS while omitting conversation text. Values under one second show as `ms`; larger values show as seconds, so `2203 ms` appears as `2.20s`. Timing cells repeat the step name, for example `front LLM: 2.20s`.
+- `RUN.md` is the shortest local run guide. `EXPLANATION.md` is the fastest single-file overview for a new LLM or developer.
+- Current real runtime screens are `stt8081`, `tts8082`, and `gateway8080`; use `screen -r <name>` to attach and `screen -S <name> -X quit` to stop one.
+- `issues.md` is the current issue tracker for post-checkpoint real-runtime defects. Read it before changing the handoff/session logic.
 - `STT_MODE=real` is now functional. Java endpointing uses `STT_ENERGY_THRESHOLD`, `STT_MIN_SPEECH_MS`, `STT_SILENCE_MS`, and `STT_MAX_UTTERANCE_MS`; Python transcription uses `STT_WHISPER_MODEL`, `STT_DEVICE`, `STT_COMPUTE_TYPE`, and `STT_LANGUAGE`.
 - Every JSONL event is mirrored to Micrometer counter `voice.events`; events with `latencyMs` are mirrored to timer `voice.event.latency`.
 - Prometheus scrapes gateway metrics from `/actuator/prometheus`; Grafana provisioning and the `Voice Two Brains` dashboard live under `ops/grafana/`.
@@ -130,6 +160,8 @@ Phase 6 - Hardening + packaging.
 
 ## Known Decisions
 - Hardware: Apple Mac M4 with 16 GB unified memory.
+- Fast conversational layer: Qwen3-4B, replacing Moshi as the main runtime path after the 2026-06-14 plan change.
+- Local fast-layer runtime tag: `qwen3:4b` via Ollama 0.30.8 on `127.0.0.1:11434`.
 - Moshi runtime: local Apple Silicon MLX q4, `kyutai/moshiko-mlx-q4`.
 - Voice: `moshiko` male.
 - LLM: hosted OpenAI-compatible API using `gpt-5.4-mini`.
@@ -156,11 +188,21 @@ Phase 6 - Hardening + packaging.
 - `LLM_MODE=real` has been smoke-tested for one backend handoff, but full real-router evaluation has not been run yet.
 - Phase 4 was advanced by user request to start Phase 5, but the formal 20-question real-runtime suppression-rate dataset was not recorded as a separate artifact.
 - Existing `data/events.jsonl` predates Phase 5 `moshi.first_audio` instrumentation, so it cannot produce perceived-latency rows until the patched gateway records fresh ASK turns.
+- Older `data/events.jsonl` rows also predate the rich handoff logging fields. Regenerate the report only after a fresh browser test with the rebuilt gateway to see full conversation text, backend prompt/answer, harmonizer output, and injection text.
+- Older `data/events.jsonl` rows predate some timing instrumentation, so `data/timing-log.md` can show `-` for STT, router, sanitizer, or TTS first-frame timings until the gateway records fresh turns with this build.
+- The latest typed real-runtime smoke did not exercise browser microphone STT, so `STT` shows `-` in those timing rows. Use the browser mic to populate STT timings.
+- Latest handoff logs show real defects captured in `issues.md`: superseded ASK jobs can still inject, injections can overlap or end out of order, Moshi still emits substantive factual content during backend handoff, stale STT utterances are routed late, and transcript windows mix real Moshi fragments with backend-injected text.
+- Some Moshi-specific issues in `issues.md` are expected to be bypassed by the Qwen pivot, but superseded-answer handling, one-active-TTS enforcement, stale STT dropping, and transcript source separation still apply to the new architecture.
+- Local `qwen3:4b` has thinking capability and local probes showed it can spend output on reasoning even when asked not to think. The Qwen integration must strip/ignore thinking fields, guard against reasoning text being sent to TTS, and use enough completion budget or a non-thinking model variant before user-facing speech.
+- The Qwen implementation has a reasoning-output guard before TTS, but a real browser run is still needed to measure whether local `qwen3:4b` latency is acceptable.
+- `qwen2.5:1.5b` is a better fast-layer candidate than `qwen3:4b` for latency and no-thinking output, but it is not safe in `ASK_PENDING` by prompt alone. It answered `what is the capital of australia` with `Well, that's Canberra!`; the next code change must enforce safe intents or a hard factual-answer guard before TTS.
+- Sanitized prompt construction is now implemented for `ASK_PENDING`, but verifier-gated TTS is still pending. Direct raw chat with the fine-tuned adapter can still answer factual paraphrases, so the full project path must use sanitizer plus verifier.
+- The preferred fast-layer safety approach is now documented in `docs/fast-layer-safety.md`: fine-tuning helps style, sanitized prompt context limits leakage, and a verifier must approve `ASK_PENDING` fast replies before TTS.
 - The Phase 5 human checkpoint still needs a fresh real-runtime metrics run and README chart/table update.
 - The Phase 6 human checkpoint still needs a full real-runtime compose run and a recorded 3-minute demo video.
 
 ## Next Exact Step
-Human runs the Phase 6 checkpoint: start real Moshi on the Mac, run `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build`, exercise the full real Moshi/STT/backend/TTS demo, run `python3 scripts/flow_log.py data/events.jsonl --out data/flow-log.md`, run `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`, paste the real chart/table into `README.md`, and record the 3-minute demo video.
+For publishing, add a git remote and push `main`. For product work, implement verifier-gated TTS for `ASK_PENDING` fast replies: reject factual-looking Qwen output before speech generation and replace it with a safe fallback line.
 
 ## Useful Commands
 - `mvn -pl gateway verify`
@@ -171,10 +213,15 @@ Human runs the Phase 6 checkpoint: start real Moshi on the Mac, run `docker comp
 - `python3 scripts/router_eval.py docs/eval/router-labels.jsonl`
 - `python3 metrics/analyze.py metrics/fixtures/events.jsonl --out metrics/out`
 - `python3 scripts/flow_log.py data/events.jsonl --out data/flow-log.md`
+- `python3 scripts/flow_log.py data/events.jsonl --out data/flow-log.md --tail 20`
 - `python3 scripts/flow_log.py metrics/fixtures/events.jsonl --out metrics/out/flow-log.md`
+- `python3 scripts/timing_log.py data/events.jsonl --out data/timing-log.md --tail 20`
+- `python3 scripts/timing_log.py metrics/fixtures/events.jsonl --out metrics/out/timing-log.md --tail 0`
+- `screen -ls`
+- `screen -S gateway8080 -X quit && screen -S stt8081 -X quit && screen -S tts8082 -X quit`
 - `python3 metrics/judge_flow.py metrics/fixtures/judge-samples.jsonl --out metrics/out --mode stub`
 - `python3 metrics/analyze.py data/events.jsonl --out metrics/out-real`
-- `python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py`
+- `python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py scripts/flow_log.py scripts/timing_log.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py`
 - `node --check gateway/src/main/resources/static/app.js && node --check gateway/src/main/resources/static/mic-capture-worklet.js`
 - `mvn -pl gateway -Dtest=BearerTokenHandshakeIntegrationTests,ConcurrentSessionIsolationIntegrationTests test`
 - `mvn -pl gateway -Dtest=RealSttClientTests test`
@@ -192,6 +239,12 @@ Human runs the Phase 6 checkpoint: start real Moshi on the Mac, run `docker comp
 - `screen -ls`
 - `screen -r moshi8998`
 - `screen -r gateway8080`
+- `brew services start ollama`
+- `curl -fsS http://localhost:11434/api/version`
+- `ollama pull qwen3:4b`
+- `ollama list`
+- `curl -fsS http://localhost:11434/v1/chat/completions -H 'Content-Type: application/json' -d '{"model":"qwen3:4b","messages":[{"role":"user","content":"Say local Qwen is ready."}],"temperature":0.2,"max_tokens":128}'`
+- `VOICE_RUNTIME=qwen FAST_LLM_MODE=real FAST_LLM_BASE_URL=http://localhost:11434/v1 FAST_LLM_API_KEY=ollama FAST_LLM_MODEL=qwen3:4b STT_MODE=stub TTS_MODE=stub LLM_MODE=stub java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar`
 - `cd stt-service && /opt/homebrew/bin/python3.12 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8081`
 - `cd tts-service && /opt/homebrew/bin/python3.12 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8082`
 - `git status --short`

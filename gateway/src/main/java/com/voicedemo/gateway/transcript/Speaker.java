@@ -2,6 +2,7 @@ package com.voicedemo.gateway.transcript;
 
 public enum Speaker {
     USER,
-    MOSHI
+    MOSHI,
+    FAST_LLM,
+    BACKEND
 }
-

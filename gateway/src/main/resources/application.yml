@@ -12,6 +12,7 @@ management:
         include: health,info,prometheus
 
 voice:
+  runtime: ${VOICE_RUNTIME:moshi}
   moshi-mode: ${MOSHI_MODE:stub}
   moshi-ws-url: ${MOSHI_WS_URL:ws://localhost:8998/api/chat}
   stt-mode: ${STT_MODE:stub}
@@ -27,6 +28,14 @@ voice:
   llm-api-key: ${LLM_API_KEY:}
   llm-model-answer: ${LLM_MODEL_ANSWER:gpt-5.4-mini}
   llm-model-router: ${LLM_MODEL_ROUTER:gpt-5.4-mini}
+  fast-llm-mode: ${FAST_LLM_MODE:stub}
+  fast-llm-base-url: ${FAST_LLM_BASE_URL:http://localhost:11434/v1}
+  fast-llm-api-key: ${FAST_LLM_API_KEY:}
+  fast-llm-model: ${FAST_LLM_MODEL:qwen3:4b}
+  fast-reply-max-tokens: ${FAST_REPLY_MAX_TOKENS:60}
+  fast-reply-temperature: ${FAST_REPLY_TEMPERATURE:0.7}
+  fast-pending-max-words: ${FAST_PENDING_MAX_WORDS:18}
+  fast-stale-utterance-ms: ${FAST_STALE_UTTERANCE_MS:4000}
   ask-timeout-ms: ${ASK_TIMEOUT_MS:20000}
   stale-turn-limit: ${STALE_TURN_LIMIT:2}
   event-log-path: ${EVENT_LOG_PATH:./data/events.jsonl}

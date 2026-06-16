@@ -21,7 +21,10 @@ public class BargeInDetector {
     }
 
     public boolean observe(String sessionId, SessionStatus status, byte[] pcm) {
-        if (status != SessionStatus.INJECTING) {
+        if (status != SessionStatus.INJECTING
+                && status != SessionStatus.BACKEND_INJECTING
+                && status != SessionStatus.FAST_SPEAKING
+                && status != SessionStatus.ASK_PENDING_FAST_SPEAKING) {
             windows.remove(sessionId);
             return false;
         }

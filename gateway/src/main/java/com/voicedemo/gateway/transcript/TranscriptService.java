@@ -27,6 +27,18 @@ public class TranscriptService {
         return line;
     }
 
+    public TranscriptLine addFastText(String sessionId, String text) {
+        TranscriptLine line = new TranscriptLine(Speaker.FAST_LLM, text, null, Instant.now().toEpochMilli());
+        buffer(sessionId).add(line);
+        return line;
+    }
+
+    public TranscriptLine addBackendText(String sessionId, String text) {
+        TranscriptLine line = new TranscriptLine(Speaker.BACKEND, text, null, Instant.now().toEpochMilli());
+        buffer(sessionId).add(line);
+        return line;
+    }
+
     public List<TranscriptLine> recent(String sessionId, int limit) {
         return buffer(sessionId).recent(limit);
     }

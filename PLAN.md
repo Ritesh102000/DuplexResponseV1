@@ -30,6 +30,336 @@ Before stopping, committing, completing a phase, handing off to another agent, o
 
 ---
 
+# CHANGES - Qwen3-4B Fast Conversational Layer
+
+Date: 2026-06-14
+
+These changes override the original Moshi-first parts of the implementation spec where they conflict.
+
+## New Product Direction
+
+The project is still a two-tier voice assistant, but the fast "System 1" layer should no longer be Moshi. Replace the live Moshi speech-to-speech layer with a controllable fast text LLM:
+
+- **Fast conversational layer:** `Qwen3-4B`
+- **Input to fast layer:** STT text from the user
+- **Output from fast layer:** short text spoken through `tts-service`
+- **Backend factual layer:** hosted OpenAI-compatible LLM or another stronger answer model
+- **Goal:** keep the user naturally engaged while the backend factual answer is being produced
+
+The fast Qwen layer is allowed to converse naturally. It is not just a fixed filler phrase system. During factual `ASK` turns, it must keep the conversation warm without giving the factual answer.
+
+## New Core Principle
+
+For `ASK` turns, separate **conversation ownership** from **truth ownership**:
+
+- Qwen3-4B owns immediate conversational continuity.
+- Backend answer model owns factual answers.
+- Code must enforce this separation. Do not rely only on prompting.
+
+If the router labels a turn `ASK`, the fast layer must not receive an instruction to answer that factual question. It receives a holding-context task instead.
+
+## Revised High-Level Flow
+
+```text
+Browser mic
+-> gateway
+-> STT
+-> Router
+   -> CHAT:
+        Qwen3-4B replies normally but briefly
+        TTS speaks Qwen reply
+   -> ASK:
+        backend factual answer job starts
+        Qwen3-4B enters ASK_PENDING conversational mode
+        Qwen can keep talking naturally without giving the factual answer
+        user may continue speaking to Qwen while backend job runs
+        backend answer becomes ready
+        gateway injects backend answer at the next safe speaking point
+   -> ACT:
+        canned "coming soon" response for now
+```
+
+Moshi may remain in the repository as legacy/optional code during migration, but it is no longer the main runtime path for the product goal.
+
+## Fast Qwen Layer Responsibilities
+
+The fast layer should:
+
+- respond quickly to normal conversational turns;
+- keep replies short and spoken, usually one sentence;
+- during `ASK_PENDING`, react like a human conversational partner;
+- acknowledge uncertainty naturally;
+- keep the conversation alive if the user continues talking;
+- avoid factual claims about the pending question;
+- avoid saying robotic waiting phrases repeatedly;
+- hand back cleanly when the backend answer arrives.
+
+The fast layer must not:
+
+- answer the factual `ASK` question;
+- invent facts while the backend answer is pending;
+- contradict the backend answer;
+- keep speaking over the backend injection;
+- receive backend-only hidden answer content before it is ready to be spoken.
+
+## Required New Components
+
+Add or adapt these gateway components:
+
+- `FastConversationService`
+  - Calls Qwen3-4B through the existing OpenAI-compatible `LlmClient`.
+  - Supports `CHAT` and `ASK_PENDING` prompt modes.
+  - Produces short spoken-register text for TTS.
+
+- `ConversationMode`
+  - Tracks whether the session is in normal chat or holding a pending factual answer.
+  - Suggested values: `NORMAL`, `ASK_PENDING`, `ANSWER_READY`.
+
+- `PendingAnswerRegistry`
+  - Tracks one active backend answer job per session.
+  - Stores `correlationId`, `utteranceId`, original factual question, dispatch turn index, and current status.
+  - Prevents superseded answers from being spoken.
+
+- `SpeechTurnScheduler`
+  - Owns when Qwen TTS and backend TTS may speak.
+  - Enforces one active TTS stream per session.
+  - Queues backend answer until user speech and fast-layer speech are not active.
+
+- `BackendAnswerInjector`
+  - Converts backend answer into the final spoken text.
+  - Injects the answer only if the pending answer is still current.
+  - Emits clear events for queued, started, completed, canceled, and stale answers.
+
+## Revised Session States
+
+Replace the Moshi-oriented state machine with a text-LLM + TTS state machine. Suggested states:
+
+```text
+IDLE
+LISTENING
+ROUTING
+FAST_THINKING
+FAST_SPEAKING
+ASK_PENDING
+ASK_PENDING_FAST_THINKING
+ASK_PENDING_FAST_SPEAKING
+ANSWER_READY
+BACKEND_INJECTING
+```
+
+State meanings:
+
+- `IDLE`
+  - WebSocket is not ready.
+
+- `LISTENING`
+  - Browser mic is active.
+  - STT may produce user utterances.
+  - No TTS is currently speaking.
+
+- `ROUTING`
+  - A fresh user utterance is being classified as `CHAT`, `ASK`, or `ACT`.
+  - If a newer utterance arrives before routing finishes, the old routing result must be dropped.
+
+- `FAST_THINKING`
+  - Qwen3-4B is generating a normal `CHAT` response.
+
+- `FAST_SPEAKING`
+  - TTS is speaking Qwen's normal chat response.
+  - User barge-in should cancel or duck this speech.
+
+- `ASK_PENDING`
+  - A backend factual answer is in flight.
+  - The original factual question is tracked.
+  - Qwen may continue engaging, but must not answer the pending factual question.
+
+- `ASK_PENDING_FAST_THINKING`
+  - User said something while a backend answer is pending.
+  - Qwen is generating a holding-context conversational reply.
+
+- `ASK_PENDING_FAST_SPEAKING`
+  - TTS is speaking Qwen's holding-context reply.
+  - Backend answer may become ready during this state but should wait for a safe injection point.
+
+- `ANSWER_READY`
+  - Backend answer has completed and is fresh.
+  - It is queued for injection.
+  - The scheduler waits for no user speech and no fast-layer TTS before speaking it.
+
+- `BACKEND_INJECTING`
+  - TTS is speaking the backend factual answer.
+  - User barge-in cancels or pauses the injection according to existing barge-in policy.
+
+## Revised State Transitions
+
+| Current | Event | Next | Side effects |
+|---|---|---|---|
+| `IDLE` | client WS open | `LISTENING` | emit `session.start` |
+| `LISTENING` | user utterance | `ROUTING` | append user transcript, run router |
+| `ROUTING` | router `CHAT` and utterance still latest | `FAST_THINKING` | call Qwen in normal chat mode |
+| `ROUTING` | router `ASK` and utterance still latest | `ASK_PENDING` | dispatch backend answer job, call Qwen in holding-context mode if immediate reply is needed |
+| `ROUTING` | router `ACT` | `FAST_SPEAKING` | speak canned "actions coming soon" response |
+| `ROUTING` | newer utterance superseded this one | previous valid state | log `router.dropped_stale` |
+| `FAST_THINKING` | Qwen reply ready | `FAST_SPEAKING` | speak Qwen reply through TTS |
+| `FAST_SPEAKING` | TTS end | `LISTENING` | emit `fast.reply.end` |
+| `FAST_SPEAKING` | user barge-in | `LISTENING` | cancel fast TTS, log `barge_in` |
+| `ASK_PENDING` | user utterance | `ASK_PENDING_FAST_THINKING` | call Qwen in holding-context mode |
+| `ASK_PENDING_FAST_THINKING` | Qwen reply ready | `ASK_PENDING_FAST_SPEAKING` | speak Qwen holding reply |
+| `ASK_PENDING_FAST_SPEAKING` | Qwen TTS end and backend not ready | `ASK_PENDING` | continue listening |
+| `ASK_PENDING` / `ASK_PENDING_FAST_THINKING` / `ASK_PENDING_FAST_SPEAKING` | backend answer ready and still current | `ANSWER_READY` | queue backend answer |
+| `ANSWER_READY` | safe speaking point | `BACKEND_INJECTING` | speak backend answer through TTS |
+| `BACKEND_INJECTING` | TTS end | `LISTENING` | emit `backend.inject.end`, clear pending answer |
+| `BACKEND_INJECTING` | user barge-in | `LISTENING` or `ANSWER_READY` | cancel or pause injection, log `barge_in` |
+| any | client WS close | `IDLE` | cancel active TTS and jobs |
+
+## ASK Pending Prompt Contract For Qwen3-4B
+
+When a backend answer is pending, Qwen3-4B must be prompted as a conversational holder, not an answer model.
+
+Required behavior:
+
+```text
+You are keeping a natural spoken conversation going while another system checks a factual answer.
+
+Rules:
+- Do not answer the pending factual question.
+- Do not give factual claims about the pending question.
+- You may react, empathize, ask a light clarifying question, or discuss why the question is interesting.
+- Keep the reply under 18 words.
+- If the user directly asks for the answer, say it is still being checked.
+- Sound natural, not robotic.
+```
+
+The prompt must include:
+
+- the pending factual question;
+- the latest user utterance;
+- recent safe transcript context;
+- an explicit instruction that the factual answer is owned by the backend answer model.
+
+The prompt must not include:
+
+- a hidden backend answer before it is ready to speak;
+- suppressed or stale transcript fragments;
+- instructions that invite Qwen to solve the factual task.
+
+## CHAT Prompt Contract For Qwen3-4B
+
+For `CHAT`, Qwen3-4B may answer normally:
+
+```text
+You are a fast spoken conversational assistant.
+Reply naturally in one short sentence unless the user clearly asks for more.
+Do not use markdown, lists, or long explanations.
+```
+
+## Backend Answer Contract
+
+The backend factual model remains responsible for real answers:
+
+- use the current answer prompt style;
+- keep answer short and spoken;
+- include enough context for factual correctness;
+- never be superseded by older jobs;
+- only inject if its `correlationId` is still active.
+
+## Revised Event Log
+
+Keep existing events where useful, but add these new events:
+
+```text
+fast.reply.request
+fast.reply.response
+fast.reply.start
+fast.reply.end
+fast.reply.canceled
+ask.pending.start
+ask.pending.superseded
+backend.answer.ready
+backend.answer.queued
+backend.inject.start
+backend.inject.end
+backend.inject.canceled
+router.dropped_stale
+utterance.dropped_stale_stt
+```
+
+`scripts/flow_log.py` should group these events by `utteranceId` and `correlationId` and show:
+
+- user utterance;
+- router decision;
+- fast Qwen prompt mode (`CHAT` or `ASK_PENDING`);
+- Qwen text;
+- backend answer request/response;
+- queue time before backend injection;
+- TTS start/end times;
+- barge-in/cancel/stale decisions.
+
+## Revised Metrics
+
+Primary metrics:
+
+- fast reply latency: `fast.reply.start - utterance.end`;
+- backend true answer latency: `backend.inject.start - utterance.end`;
+- backend queue delay: `backend.inject.start - backend.answer.ready`;
+- stale STT drop count;
+- stale router drop count;
+- superseded backend answer count;
+- interrupted fast replies;
+- interrupted backend injections;
+- flow-break judge score.
+
+The headline demo metric remains:
+
+```text
+fast conversational response under about 1 second, with factual backend answer arriving later naturally.
+```
+
+## Configuration Additions
+
+Add these config values:
+
+```text
+FAST_LLM_MODE=stub|real
+FAST_LLM_BASE_URL=http://localhost:11434/v1
+FAST_LLM_API_KEY=
+FAST_LLM_MODEL=Qwen3-4B
+FAST_REPLY_MAX_TOKENS=60
+FAST_REPLY_TEMPERATURE=0.7
+FAST_PENDING_MAX_WORDS=18
+FAST_STALE_UTTERANCE_MS=4000
+VOICE_RUNTIME=qwen|moshi|stub
+```
+
+Recommended local Qwen deployment is via an OpenAI-compatible endpoint such as Ollama, llama.cpp server, or another local model server. Keep the Java gateway provider-agnostic.
+
+## Migration Plan
+
+1. Add the new config values and prompt files for `CHAT` and `ASK_PENDING`.
+2. Add `FastConversationService` with stub and real implementations.
+3. Add the revised state machine while preserving existing tests where possible.
+4. Add Qwen fast-reply TTS path for `CHAT`.
+5. Add `ASK_PENDING` mode where backend answer job runs in parallel with Qwen holding conversation.
+6. Add one-active-TTS enforcement in `SpeechTurnScheduler` / `OutboundMixer`.
+7. Add stale STT and stale router-result dropping.
+8. Separate transcript source labels: `USER`, `FAST_LLM`, `BACKEND`, and optional legacy `MOSHI`.
+9. Update `scripts/flow_log.py`, metrics, README, and tests for the new event names.
+10. Leave Moshi code behind a legacy mode until the Qwen runtime path is stable, then remove or de-emphasize it.
+
+## Acceptance Criteria For The New Direction
+
+- In `CHAT`, Qwen3-4B responds through TTS without backend answer involvement.
+- In `ASK`, backend answer job starts while Qwen3-4B can continue natural conversation without giving the answer.
+- User can keep speaking during `ASK_PENDING`.
+- Backend answer injects only once, only if current, and only at a safe speaking point.
+- Superseded answers never reach TTS.
+- Only one TTS stream is active per session.
+- Stale STT utterances are dropped before routing.
+- Flow log clearly shows fast Qwen turns and backend answer timing.
+- Stub mode still passes without model servers or API keys.
+
+---
+
 # 1. Original Implementation Spec
 
 # IMPLEMENTATION SPEC — Two-Tier Voice Assistant (Demo)

@@ -1,6 +1,6 @@
 # Two-Tier Voice Assistant Demo
 
-This project is a real-time voice assistant demo with Moshi handling live conversational audio and a backend LLM handling slower reasoning answers.
+This project is a real-time two-tier voice assistant demo. The current runtime direction uses a local Qwen3-4B text LLM as the fast conversational layer over STT/TTS, while a stronger backend LLM owns slower factual answers.
 
 `PLAN.md` is the canonical implementation plan. Work proceeds phase by phase and stops at each human checkpoint.
 
@@ -12,6 +12,7 @@ Phase 6 - Hardening + packaging. Automated stub acceptance is complete; full GPU
 
 - Stub mode by default: no GPU, API key, or model-provider network required for CI.
 - Gateway: Spring Boot 3.x, Java 21, Maven.
+- Fast local conversation target: Ollama `qwen3:4b` at `http://localhost:11434/v1`.
 - Real local Moshi target: Apple Silicon MLX q4 with `kyutai/moshiko-mlx-q4`.
 
 ## Architecture
@@ -19,22 +20,66 @@ Phase 6 - Hardening + packaging. Automated stub acceptance is complete; full GPU
 ```mermaid
 flowchart LR
     Browser[Browser] -->|24 kHz PCM WS| Gateway[Spring Boot Gateway]
-    Gateway -->|Ogg/Opus WS| Moshi[Moshi speech model]
+    Gateway --> STT[STT sidecar]
     Gateway --> Router[Router]
-    Router -->|ASK| LLM[Backend LLM]
+    Router -->|CHAT| Qwen[Qwen3-4B fast layer]
+    Router -->|ASK| QwenPending[Qwen ASK_PENDING holder]
+    Router -->|ASK| LLM[Backend factual LLM]
     LLM --> Harmonizer[Harmonizer]
+    Qwen --> TTS[TTS sidecar]
+    QwenPending --> TTS
     Harmonizer --> TTS[TTS sidecar]
     TTS --> Gateway
-    Moshi --> Gateway
     Gateway -->|single PCM stream| Browser
     Gateway --> Metrics[JSONL + Micrometer]
     Metrics --> Prometheus
     Prometheus --> Grafana
 ```
 
-Moshi owns the live floor. The backend LLM only answers delegated `ASK` turns,
-and the gateway suppresses substantive Moshi answers while the backend job is
-in flight.
+For `CHAT`, Qwen replies quickly and briefly through TTS. For `ASK`, Qwen enters
+`ASK_PENDING` mode and keeps the conversation warm without answering the factual
+question; the backend factual LLM produces the answer and the gateway injects it
+at the next safe speaking point. Moshi remains in the repo as a legacy/optional
+runtime path.
+
+## Qwen Runtime
+
+Local model setup:
+
+```sh
+brew services start ollama
+ollama pull qwen3:4b
+ollama list
+```
+
+Quick typed test with local Qwen as the fast layer and stub backend/TTS:
+
+```sh
+mvn -pl gateway package
+VOICE_RUNTIME=qwen \
+FAST_LLM_MODE=real \
+FAST_LLM_BASE_URL=http://localhost:11434/v1 \
+FAST_LLM_API_KEY=ollama \
+FAST_LLM_MODEL=qwen3:4b \
+STT_MODE=stub \
+TTS_MODE=stub \
+LLM_MODE=stub \
+java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar
+```
+
+Open `http://localhost:8080`, click **Connect**, type a chat message or factual
+question, then click **Send Utterance**. In the debug panel:
+
+- `CHAT` turns should show `fast.reply.start` / `fast.reply.end`.
+- `ASK` turns should show `ask.pending.start`, a short `transcript.fast`, then
+  `backend.inject.start` / `backend.inject.end`.
+
+For spoken mic input and spoken output, also run the STT and TTS sidecars and
+start the gateway with `STT_MODE=real` and `TTS_MODE=real`.
+
+The local `qwen3:4b` tag has thinking capability. The gateway filters reasoning
+fields and reasoning-looking text before TTS, but if local Qwen replies slowly,
+that is likely the model spending tokens on thinking before producing content.
 
 ## Phase 0 Checks
 
@@ -166,7 +211,7 @@ mvn -pl gateway -Dtest=Phase4SuppressionBargeInIntegrationTests test
 mvn -pl gateway verify
 python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
 python3 scripts/router_eval.py docs/eval/router-labels.jsonl
-python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py scripts/flow_log.py stubs/fake-moshi/fake_moshi.py
+python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py scripts/flow_log.py scripts/timing_log.py stubs/fake-moshi/fake_moshi.py
 node --check gateway/src/main/resources/static/app.js
 node --check gateway/src/main/resources/static/mic-capture-worklet.js
 ```
@@ -190,7 +235,7 @@ python3 metrics/analyze.py metrics/fixtures/events.jsonl --out metrics/out
 python3 metrics/judge_flow.py metrics/fixtures/judge-samples.jsonl --out metrics/out --mode stub
 python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
 python3 scripts/router_eval.py docs/eval/router-labels.jsonl
-python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py scripts/flow_log.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py
+python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py scripts/flow_log.py scripts/timing_log.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py
 node --check gateway/src/main/resources/static/app.js
 node --check gateway/src/main/resources/static/mic-capture-worklet.js
 ```
@@ -232,10 +277,26 @@ or backend-LLM spoken handoffs:
 python3 scripts/flow_log.py data/events.jsonl --out data/flow-log.md
 ```
 
-Open `data/flow-log.md` after a test run. `BACKEND_SPOKEN` means the flow reached
-`router.decision -> job.dispatched -> job.completed -> inject.start -> inject.end`.
-`MOSHI_ONLY` means the router chose chat, or no typed/STT utterance reached the
-router.
+Open `data/flow-log.md` after a test run. New logs include the user query, fast
+Qwen prompt mode/text, nearby legacy Moshi text when present, router
+input/decision, backend answer-model request, raw LLM answer, harmonizer
+input/output, injected TTS text, and timing between handoff steps.
+`QWEN_FAST_CHAT` means a chat turn was spoken by the fast layer.
+`QWEN_BACKEND_SPOKEN` means an ASK turn reached fast holding speech plus backend
+answer injection. Legacy `BACKEND_SPOKEN` is the older Moshi-first handoff path.
+
+To write a timing-only log for STT, router, sanitizer, fast LLM, backend LLM,
+harmonizer, and TTS:
+
+```sh
+python3 scripts/timing_log.py data/events.jsonl --out data/timing-log.md --tail 20
+```
+
+Open `data/timing-log.md` after a fresh gateway run. It shows values under one
+second as `ms`, values above one second as `s`, and repeats the step name inside
+each timing cell, for example `front LLM: 2.20s`. The `slowest` column shows the
+bottleneck. Older logs show `-` for steps that were not instrumented yet or did
+not run for that turn.
 
 To run Prometheus and Grafana:
 
@@ -261,7 +322,7 @@ python3 scripts/validate_router_labels.py docs/eval/router-labels.jsonl
 python3 scripts/router_eval.py docs/eval/router-labels.jsonl
 python3 metrics/analyze.py metrics/fixtures/events.jsonl --out metrics/out
 python3 metrics/judge_flow.py metrics/fixtures/judge-samples.jsonl --out metrics/out --mode stub
-python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py scripts/flow_log.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py
+python3 -m py_compile stt-service/app/main.py tts-service/app/main.py scripts/router_eval.py scripts/validate_router_labels.py scripts/flow_log.py scripts/timing_log.py stubs/fake-moshi/fake_moshi.py metrics/analyze.py metrics/judge_flow.py
 node --check gateway/src/main/resources/static/app.js
 node --check gateway/src/main/resources/static/mic-capture-worklet.js
 docker compose config
@@ -277,7 +338,44 @@ docker compose up --build
 Expected services: gateway `8080`, STT `8081`, TTS `8082`, Prometheus `9090`,
 Grafana `3000`.
 
-Real Moshi on this Mac:
+Real Qwen/STT/TTS on this Mac:
+
+```sh
+brew services start ollama
+
+cd stt-service
+/opt/homebrew/bin/python3.12 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8081
+
+cd ../tts-service
+/opt/homebrew/bin/python3.12 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8082
+```
+
+Then, from the repo root:
+
+```sh
+VOICE_RUNTIME=qwen \
+STT_MODE=real \
+STT_URL=http://127.0.0.1:8081 \
+TTS_MODE=real \
+TTS_URL=http://127.0.0.1:8082 \
+FAST_LLM_MODE=real \
+FAST_LLM_BASE_URL=http://localhost:11434/v1 \
+FAST_LLM_API_KEY=ollama \
+FAST_LLM_MODEL=qwen3:4b \
+LLM_MODE=real \
+LLM_BASE_URL=https://api.openai.com/v1 \
+LLM_MODEL_ROUTER=gpt-4o-mini \
+LLM_MODEL_ANSWER=gpt-4o-mini \
+java -jar gateway/target/gateway-0.0.1-SNAPSHOT.jar
+```
+
+Legacy real Moshi on this Mac:
 
 ```sh
 /Users/riteshrajput/.venvs/moshi-mlx/bin/python -m moshi_mlx.local_web \
@@ -286,10 +384,11 @@ Real Moshi on this Mac:
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 ```
 
-The GPU overlay defaults the gateway to `MOSHI_MODE=real`, `STT_MODE=real`,
-`TTS_MODE=real`, and `LLM_MODE=real`. With a valid `.env` API key, spoken mic
-questions should now create `transcript.user`, `router.decision`, backend job,
-and injection events without using the text box.
+The GPU overlay now defaults the gateway to `VOICE_RUNTIME=qwen`,
+`STT_MODE=real`, `TTS_MODE=real`, `LLM_MODE=real`, and `FAST_LLM_MODE=real`.
+With Ollama running and a valid backend `.env` API key, spoken mic questions
+should create `transcript.user`, `router.decision`, fast Qwen events, backend
+job events, and backend injection events without using the text box.
 
 If `VOICE_WS_TOKEN` is set, `/ws/voice` requires a bearer token. The browser can
 pass it with `http://localhost:8080/?token=<token>` or by setting
@@ -320,10 +419,10 @@ runtime numbers from a Phase 6 demo run.
 
 ## Hard Problems
 
-- Suppression: Moshi is not prompted to stay silent; the gateway detects long Moshi answer attempts during `ASK_IN_FLIGHT` and fades audio out.
-- Floor holding: Moshi can acknowledge quickly while the backend LLM works, preserving perceived latency below one second in the intended demo.
+- Truth ownership: Qwen is allowed to keep conversation going, but factual `ASK` answers are owned by the backend LLM.
+- Floor holding: Qwen enters `ASK_PENDING` and speaks short holding responses while the backend LLM works.
 - Stale answers: backend results are dropped or reintroduced based on user-turn distance from dispatch.
-- One voice, two brains: Moshi handles live conversation; the backend LLM contributes delayed factual answers through TTS injection.
+- One active speaker: fast Qwen speech and backend injection share the same outbound mixer so TTS streams do not overlap.
 - Barge-in: user speech during injection cancels TTS and returns the floor.
 
 ## Future Scope

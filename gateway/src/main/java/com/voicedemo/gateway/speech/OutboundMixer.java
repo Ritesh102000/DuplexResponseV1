@@ -40,7 +40,10 @@ public class OutboundMixer {
             Flux<byte[]> ttsFrames,
             Runnable onComplete) {
         ActiveInjection active = new ActiveInjection(correlationId);
-        activeInjections.put(sessionId, active);
+        ActiveInjection previous = activeInjections.put(sessionId, active);
+        if (previous != null) {
+            previous.dispose();
+        }
         Disposable disposable = ttsFrames
                 .concatMap(frame -> Mono.fromRunnable(() -> sendBinary(session, frame))
                         .then(Mono.delay(FRAME_DURATION))
@@ -51,7 +54,7 @@ public class OutboundMixer {
                         error.getMessage() == null ? "TTS stream failed" : error.getMessage()
                 ))
                 .doFinally(signal -> {
-                    activeInjections.remove(sessionId);
+                    activeInjections.remove(sessionId, active);
                     onComplete.run();
                 })
                 .subscribe();

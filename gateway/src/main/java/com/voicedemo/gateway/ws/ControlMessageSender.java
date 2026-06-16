@@ -37,6 +37,24 @@ public class ControlMessageSender {
         ));
     }
 
+    public void fastTranscript(WebSocketSession session, String sessionId, String text) {
+        send(session, Map.of(
+                "type", "transcript.fast",
+                "sessionId", sessionId,
+                "text", text,
+                "ts", Instant.now().toEpochMilli()
+        ));
+    }
+
+    public void backendTranscript(WebSocketSession session, String sessionId, String text) {
+        send(session, Map.of(
+                "type", "transcript.backend",
+                "sessionId", sessionId,
+                "text", text,
+                "ts", Instant.now().toEpochMilli()
+        ));
+    }
+
     public void userTranscript(WebSocketSession session, String sessionId, String utteranceId, String text, long ts) {
         send(session, Map.of(
                 "type", "transcript.user",
@@ -82,6 +100,42 @@ public class ControlMessageSender {
     public void injectEnd(WebSocketSession session, String sessionId, String correlationId) {
         send(session, Map.of(
                 "type", "inject.end",
+                "sessionId", sessionId,
+                "correlationId", correlationId,
+                "ts", Instant.now().toEpochMilli()
+        ));
+    }
+
+    public void fastReplyStart(WebSocketSession session, String sessionId, String correlationId) {
+        send(session, Map.of(
+                "type", "fast.reply.start",
+                "sessionId", sessionId,
+                "correlationId", correlationId,
+                "ts", Instant.now().toEpochMilli()
+        ));
+    }
+
+    public void fastReplyEnd(WebSocketSession session, String sessionId, String correlationId) {
+        send(session, Map.of(
+                "type", "fast.reply.end",
+                "sessionId", sessionId,
+                "correlationId", correlationId,
+                "ts", Instant.now().toEpochMilli()
+        ));
+    }
+
+    public void backendInjectStart(WebSocketSession session, String sessionId, String correlationId) {
+        send(session, Map.of(
+                "type", "backend.inject.start",
+                "sessionId", sessionId,
+                "correlationId", correlationId,
+                "ts", Instant.now().toEpochMilli()
+        ));
+    }
+
+    public void backendInjectEnd(WebSocketSession session, String sessionId, String correlationId) {
+        send(session, Map.of(
+                "type", "backend.inject.end",
                 "sessionId", sessionId,
                 "correlationId", correlationId,
                 "ts", Instant.now().toEpochMilli()

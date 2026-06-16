@@ -32,6 +32,10 @@ class HeuristicRouterTests {
                 .isEqualTo(RouteLabel.CHAT);
         assertThat(router.classify(List.of(), "how expensive are flights to Goa").label())
                 .isEqualTo(RouteLabel.ASK);
+        assertThat(router.classify(List.of(), "whats the cap of aus").label())
+                .isEqualTo(RouteLabel.ASK);
+        assertThat(router.classify(List.of(), "cap of aus").label())
+                .isEqualTo(RouteLabel.ASK);
         assertThat(router.classify(List.of(), "send a message to Rahul").label())
                 .isEqualTo(RouteLabel.ACT);
     }
@@ -53,4 +57,3 @@ class HeuristicRouterTests {
         }
     }
 }
-
