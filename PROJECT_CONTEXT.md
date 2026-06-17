@@ -68,6 +68,9 @@ Added `RUN.md` with direct local run steps and `EXPLANATION.md` as a compact LLM
 Latest real-mode runtime check:
 On 2026-06-17 19:04 IST, the real local stack was already running in detached `screen` sessions: `stt8081`, `tts8082`, and `gateway8080`. Health checks passed for gateway `8080`, STT `8081` (`faster_whisper`, model loaded), TTS `8082` (`macos_say`), and Ollama `11434`. A typed WebSocket smoke through `ws://127.0.0.1:8080/ws/voice` routed `hello there` as `CHAT`, Qwen returned `Hello!`, TTS streamed audio frames, and `fast.reply.end` arrived.
 
+Latest runtime stop:
+On 2026-06-17 19:09 IST, the project gateway/STT/TTS runtime was stopped. No `screen` sessions remain and ports `8080`, `8081`, and `8082` are no longer listening. Ollama was left running on `11434`.
+
 Next exact step:
 For product work, implement the verifier before TTS for `ASK_PENDING` fast replies. It should block factual-looking Qwen outputs and replace them with a safe spoken fallback before audio is generated.
 

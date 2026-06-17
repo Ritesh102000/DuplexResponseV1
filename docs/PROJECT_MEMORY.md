@@ -137,8 +137,8 @@ Phase 6 - Hardening + packaging.
 - For fresh logs, `data/flow-log.md` also shows the user query, nearby Moshi text, router transcript window, exact backend answer-model messages, raw backend answer, harmonizer input/output, final text sent to TTS/injection, and timing deltas between those events.
 - `scripts/timing_log.py` is the timing-only diagnostic tool; it reads `data/events.jsonl` and writes `data/timing-log.md` with simple duration columns for STT, router, sanitizer, front LLM, front TTS, back LLM, harmonizer, and back TTS while omitting conversation text. Values under one second show as `ms`; larger values show as seconds, so `2203 ms` appears as `2.20s`. Timing cells repeat the step name, for example `front LLM: 2.20s`.
 - `RUN.md` is the shortest local run guide. `EXPLANATION.md` is the fastest single-file overview for a new LLM or developer.
-- Current real runtime screens are `stt8081`, `tts8082`, and `gateway8080`; use `screen -r <name>` to attach and `screen -S <name> -X quit` to stop one.
 - Latest real-mode check: 2026-06-17 19:04 IST; gateway `8080`, STT `8081`, TTS `8082`, and Ollama `11434` were all healthy.
+- Latest runtime stop: 2026-06-17 19:09 IST; gateway/STT/TTS were stopped, no `screen` sessions remain, and ports `8080`, `8081`, and `8082` are closed. Ollama was left running on `11434`.
 - `issues.md` is the current issue tracker for post-checkpoint real-runtime defects. Read it before changing the handoff/session logic.
 - `STT_MODE=real` is now functional. Java endpointing uses `STT_ENERGY_THRESHOLD`, `STT_MIN_SPEECH_MS`, `STT_SILENCE_MS`, and `STT_MAX_UTTERANCE_MS`; Python transcription uses `STT_WHISPER_MODEL`, `STT_DEVICE`, `STT_COMPUTE_TYPE`, and `STT_LANGUAGE`.
 - Every JSONL event is mirrored to Micrometer counter `voice.events`; events with `latencyMs` are mirrored to timer `voice.event.latency`.
