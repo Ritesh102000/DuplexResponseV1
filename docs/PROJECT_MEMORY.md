@@ -112,6 +112,7 @@ Phase 6 - Hardening + packaging.
 - Added `RUN.md` with simple step-by-step local startup instructions and `EXPLANATION.md` with a compact LLM-readable project overview.
 - Updated `.gitignore` so runtime logs, local environment files, gateway event logs, and the fine-tuning workspace are kept out of git.
 - Configured Git remote `origin` as `https://github.com/Ritesh102000/DuplexResponseV1.git`; local `main` tracks `origin/main`.
+- Rechecked the real local runtime on 2026-06-17 19:04 IST. Gateway, STT, TTS, and Ollama were healthy; a typed WebSocket `CHAT` smoke routed correctly, Qwen replied `Hello!`, and TTS streamed audio through the browser WebSocket.
 
 ## Important Architecture
 - Gateway is Spring Boot 3.x, Java 21, Maven.
@@ -137,6 +138,7 @@ Phase 6 - Hardening + packaging.
 - `scripts/timing_log.py` is the timing-only diagnostic tool; it reads `data/events.jsonl` and writes `data/timing-log.md` with simple duration columns for STT, router, sanitizer, front LLM, front TTS, back LLM, harmonizer, and back TTS while omitting conversation text. Values under one second show as `ms`; larger values show as seconds, so `2203 ms` appears as `2.20s`. Timing cells repeat the step name, for example `front LLM: 2.20s`.
 - `RUN.md` is the shortest local run guide. `EXPLANATION.md` is the fastest single-file overview for a new LLM or developer.
 - Current real runtime screens are `stt8081`, `tts8082`, and `gateway8080`; use `screen -r <name>` to attach and `screen -S <name> -X quit` to stop one.
+- Latest real-mode check: 2026-06-17 19:04 IST; gateway `8080`, STT `8081`, TTS `8082`, and Ollama `11434` were all healthy.
 - `issues.md` is the current issue tracker for post-checkpoint real-runtime defects. Read it before changing the handoff/session logic.
 - `STT_MODE=real` is now functional. Java endpointing uses `STT_ENERGY_THRESHOLD`, `STT_MIN_SPEECH_MS`, `STT_SILENCE_MS`, and `STT_MAX_UTTERANCE_MS`; Python transcription uses `STT_WHISPER_MODEL`, `STT_DEVICE`, `STT_COMPUTE_TYPE`, and `STT_LANGUAGE`.
 - Every JSONL event is mirrored to Micrometer counter `voice.events`; events with `latencyMs` are mirrored to timer `voice.event.latency`.

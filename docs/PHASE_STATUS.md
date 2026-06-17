@@ -166,6 +166,7 @@
 - [x] Post-checkpoint real local Qwen/STT/TTS/backend stack starts and typed WebSocket `CHAT` plus `ASK` smoke tests pass.
 - [x] Post-checkpoint git handoff docs exist in `RUN.md` and `EXPLANATION.md`, with local runtime logs and fine-tuning workspace excluded from git.
 - [x] Post-checkpoint repository is pushed to `https://github.com/Ritesh102000/DuplexResponseV1.git` with `main` tracking `origin/main`.
+- [x] Post-checkpoint real local stack rechecked on 2026-06-17 with gateway/STT/TTS/Ollama healthy and typed WebSocket `CHAT` smoke passing.
 - [ ] Post-checkpoint verifier blocks unsafe `ASK_PENDING` fast replies before TTS.
 - [ ] Human GPU/full-runtime compose checkpoint is complete.
 - [ ] Three-minute demo video is recorded.
